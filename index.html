@@ -119,7 +119,7 @@
       ],
       B: [
         { name: 'Rido', team: 'Portugal 🇵🇹' },
-        { name: 'Nuryana', team: 'England 🏴󠁧󠁢󠁥󠁮󠁧󠁿' }, // <--- perbaikan di sini
+        { name: 'Nuryana', team: 'England 🏴' }, // <--- perbaikan di sini
         { name: 'Wahyu', team: 'Uruguay 🇺🇾' },
       ],
       C: [
@@ -260,7 +260,38 @@
     const groupsEl = document.getElementById('groups');
     const summaryEl = document.getElementById('summary');
 
-    const state = loadState() || { scores: {} };
+    // Jika tidak ada state di hash/localStorage, pakai contoh data supaya viewer biasa bisa melihat skor
+    const DEFAULT_SCORES = {
+      // Grup A (NK, Opik, Ud)
+      'A-0-1': { hs: 2, as: 1, homeId: 'A-0', awayId: 'A-1' },
+      'A-1-0': { hs: 1, as: 1, homeId: 'A-1', awayId: 'A-0' },
+      'A-0-2': { hs: 3, as: 0, homeId: 'A-0', awayId: 'A-2' },
+      'A-2-0': { hs: 0, as: 2, homeId: 'A-2', awayId: 'A-0' },
+      'A-1-2': { hs: 1, as: 2, homeId: 'A-1', awayId: 'A-2' },
+      'A-2-1': { hs: 0, as: 0, homeId: 'A-2', awayId: 'A-1' },
+      // Grup B (Rido, Nuryana, Wahyu)
+      'B-0-1': { hs: 1, as: 0, homeId: 'B-0', awayId: 'B-1' },
+      'B-1-0': { hs: 0, as: 2, homeId: 'B-1', awayId: 'B-0' },
+      'B-0-2': { hs: 2, as: 2, homeId: 'B-0', awayId: 'B-2' },
+      'B-2-0': { hs: 1, as: 3, homeId: 'B-2', awayId: 'B-0' },
+      'B-1-2': { hs: 0, as: 1, homeId: 'B-1', awayId: 'B-2' },
+      'B-2-1': { hs: 2, as: 0, homeId: 'B-2', awayId: 'B-1' },
+      // Grup C (AMF, Ule, Andri)
+      'C-0-1': { hs: 0, as: 1, homeId: 'C-0', awayId: 'C-1' },
+      'C-1-0': { hs: 1, as: 1, homeId: 'C-1', awayId: 'C-0' },
+      'C-0-2': { hs: 2, as: 0, homeId: 'C-0', awayId: 'C-2' },
+      'C-2-0': { hs: 0, as: 2, homeId: 'C-2', awayId: 'C-0' },
+      'C-1-2': { hs: 0, as: 3, homeId: 'C-1', awayId: 'C-2' },
+      'C-2-1': { hs: 1, as: 0, homeId: 'C-2', awayId: 'C-1' },
+      // Grup D (Eeng, Dinar, Mulanda)
+      'D-0-1': { hs: 2, as: 2, homeId: 'D-0', awayId: 'D-1' },
+      'D-1-0': { hs: 0, as: 1, homeId: 'D-1', awayId: 'D-0' },
+      'D-0-2': { hs: 1, as: 1, homeId: 'D-0', awayId: 'D-2' },
+      'D-2-0': { hs: 0, as: 2, homeId: 'D-2', awayId: 'D-0' },
+      'D-1-2': { hs: 3, as: 1, homeId: 'D-1', awayId: 'D-2' },
+      'D-2-1': { hs: 0, as: 0, homeId: 'D-2', awayId: 'D-1' },
+    };
+    const state = loadState() || { scores: DEFAULT_SCORES };
 
     const groups = {};
 
