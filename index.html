@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>PES World Cup STEKMENSI (Admin Locked)</title>
+  <title>PES World Cup – STEKMENSI</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
@@ -26,7 +26,7 @@
     <div class="flex flex-col md:flex-row md:items-end md:justify-between gap-5">
       <div>
         <h1 class="text-2xl md:text-3xl font-bold tracking-tight">PES World Cup STEKMENSI</h1>
-        <p class="text-slate-300 mt-2">Format: penyisihan grup sistem saling bertemu (round‑robin).</p>
+        <p class="text-slate-300 mt-2">Format: penyisihan grup sistem saling bertemu (round‑robin). </p>
       </div>
       <div class="flex flex-wrap gap-2">
         <button id="btnEnterAdmin" class="px-4 py-2 rounded-xl card">Masuk Admin</button>
@@ -119,8 +119,8 @@
       ],
       B: [
         { name: 'Rido', team: 'Portugal 🇵🇹' },
-        { name: 'Nuryana', team: 'England 🏴' }, // <--- perbaikan di sini
-        { name: 'Wahyu', team: 'Jepang 🇯🇵' },
+        { name: 'Nuryana', team: 'England 🏴󠁧󠁢󠁥󠁮󠁧󠁿' }, // <--- perbaikan di sini
+        { name: 'Wahyu', team: 'Uruguay 🇺🇾' },
       ],
       C: [
         { name: 'AMF', team: 'Belanda 🇳🇱' },    // Netherland -> Belanda
@@ -194,14 +194,15 @@
     function hasAdmin() {
       const localTok = localStorage.getItem(ADMIN_KEY);
       const urlTok = getURLToken();
-      // Admin aktif jika token di localStorage sudah ada dan sama dengan token di URL (jika ada)
+      // Jika token ada di URL, simpan ke localStorage sehingga persist setelah reload,
+      // lalu hapus token dari URL untuk keamanan.
       if (urlTok) {
-        if (localTok !== urlTok) {
-          localStorage.setItem(ADMIN_KEY, urlTok);
-        }
-        return localStorage.getItem(ADMIN_KEY) === urlTok;
+        localStorage.setItem(ADMIN_KEY, urlTok);
+        // Hapus token dari URL agar tidak terlihat di address bar
+        setURLToken(null);
+        return true;
       }
-      // Jika tidak ada token di URL, tetap admin jika localStorage sudah ada token
+      // Jika tidak ada token di URL, cukup cek localStorage
       return !!localTok;
     }
 
@@ -272,7 +273,12 @@
     }
 
     function buildFixtures(arr){
-      return [ [0,1], [0,2], [1,2] ];
+      // Home-away round robin (6 matches)
+      return [
+        [0,1,true], [1,0,true],
+        [0,2,true], [2,0,true],
+        [1,2,true], [2,1,true]
+      ];
     }
 
     function render(){
@@ -328,32 +334,37 @@
           const [a,b] = pair;
           const mnode = mtpl.content.cloneNode(true);
           mnode.querySelector('.md-no').textContent = (i+1);
-          const homeId = `${grp}-${a}`; const awayId = `${grp}-${b}`;
-          mnode.querySelector('.home').textContent = nameById[homeId];
-          mnode.querySelector('.away').textContent = nameById[awayId];
-
           const k = keyFor(grp,a,b);
           const hsInput = mnode.querySelector('.home-score');
           const asInput = mnode.querySelector('.away-score');
+          const swapBtn = mnode.querySelector('.swap-btn');
 
+          // Home/away mapping
+          const homeId = `${grp}-${a}`;
+          const awayId = `${grp}-${b}`;
           const saved = state.scores[k] || null;
+
+          mnode.querySelector('.home').textContent = nameById[homeId];
+          mnode.querySelector('.away').textContent = nameById[awayId];
           if(saved){
-            if(saved.hs!==null) hsInput.value = saved.hs;
-            if(saved.as!==null) asInput.value = saved.as;
+            if(saved.hs!=null) hsInput.value = saved.hs;
+            if(saved.as!=null) asInput.value = saved.as;
           }
 
-          function onChange(){
-            if(!hasAdmin()) return;
+          function persistFromInputs(){
             const hs = hsInput.value===''? null : parseInt(hsInput.value,10);
             const as = asInput.value===''? null : parseInt(asInput.value,10);
             state.scores[k] = { hs, as, homeId, awayId };
-            updateStandings();
             saveState(state);
+            updateStandings();
           }
-          hsInput.addEventListener('input', onChange);
-          asInput.addEventListener('input', onChange);
 
-          if(!isAdmin){ hsInput.disabled = true; asInput.disabled = true; }
+          hsInput.addEventListener('input', persistFromInputs);
+          asInput.addEventListener('input', persistFromInputs);
+
+          if(!isAdmin){
+            hsInput.disabled = true; asInput.disabled = true; swapBtn.style.display = 'none';
+          }
 
           matchesWrap.appendChild(mnode);
         });
@@ -386,21 +397,22 @@
       updateStandings();
     }
 
-    function keyFor(grp,a,b){return `${grp}-${Math.min(a,b)}-${Math.max(a,b)}`}
+    function keyFor(grp,a,b){return `${grp}-${a}-${b}`}
 
     function collectResultsForGroup(grp){
       const players = GROUPS[grp];
-      const pairs = [[0,1],[0,2],[1,2]];
+      const pairs = buildFixtures(players);
       const out=[];
       pairs.forEach(([a,b])=>{
         const k = keyFor(grp,a,b);
         const saved = state.scores[k] || null;
-        const homeId = `${grp}-${a}`; const awayId = `${grp}-${b}`;
+        const homeId = `${grp}-${a}`;
+        const awayId = `${grp}-${b}`;
         out.push({ homeId, awayId, hs: saved?.hs ?? null, as: saved?.as ?? null });
       });
       return out;
     }
-
+    //
     function updateStandings(){
       Object.keys(GROUPS).forEach(grp=>{ groups[grp]?.drawStandings(); });
       summaryEl.innerHTML='';
@@ -426,7 +438,9 @@
       const v = prompt('Masukkan token admin (dari link admin):');
       if(!v) return;
       localStorage.setItem(ADMIN_KEY, v.trim());
-      setURLToken(v.trim());
+      // pastikan token tidak ditampilkan di URL
+      setURLToken(null);
+      toast('Admin mode diaktifkan');
       location.reload();
     });
 
@@ -450,8 +464,7 @@
     }
 
     (function init(){
-      const urlTok = getURLToken();
-      if(urlTok){ localStorage.setItem(ADMIN_KEY, urlTok); }
+      // Jika ada token di URL, hasAdmin() akan menyimpannya ke localStorage.
       render();
     })();
   </script>
