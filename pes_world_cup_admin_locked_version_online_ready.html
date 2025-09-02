@@ -3,457 +3,96 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>PES World Cup – Grup & Input Skor (Admin Locked)</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <title>PES World Cup – Grup & Input Skor</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
-    :root{--bg:#0b1020;--card:#121832;--muted:#94a3b8;--ring:#3b82f6}
-    html,body{background:linear-gradient(180deg,#0b1020,#0f1630 40%,#0b1020);color:white;font-family:Inter,system-ui,Segoe UI,Roboto,Arial}
-    .card{background:linear-gradient(180deg,rgba(255,255,255,0.06),rgba(255,255,255,0.02));border:1px solid rgba(255,255,255,0.08);backdrop-filter: blur(10px)}
-    input[type=number]{background:#0c1227;border:1px solid rgba(255,255,255,0.08);border-radius:.5rem;padding:.4rem .5rem;width:4.2rem}
-    input[type=number]:focus{outline:none;border-color:var(--ring);box-shadow:0 0 0 3px rgba(59,130,246,.25)}
-    .badge{background:#0c1227;border:1px solid rgba(255,255,255,.08);border-radius:.4rem;padding:.15rem .45rem}
-    .tab-active{background:#1b2448}
-    .table th,.table td{padding:.55rem .6rem;border-bottom:1px dashed rgba(255,255,255,.06)}
-    .locked .score{opacity:.6;pointer-events:none}
-    .lock-badge{font-size:.75rem;opacity:.8}
+    body{background:#0b1020;color:white;font-family:sans-serif}
+    .card{background:#121832;border-radius:1rem;padding:1rem;margin-bottom:1rem}
+    input[type=number]{width:3rem;text-align:center;border-radius:.5rem;border:1px solid #444;background:#0c1227;color:white;padding:.3rem}
+    .hidden{display:none}
   </style>
 </head>
-<body class="min-h-screen">
-  <header class="max-w-6xl mx-auto px-4 pt-8 pb-4">
-    <div class="flex flex-col md:flex-row md:items-end md:justify-between gap-5">
-      <div>
-        <h1 class="text-2xl md:text-3xl font-bold tracking-tight">PES World Cup – Grup & Input Skor</h1>
-        <p class="text-slate-300 mt-2">Format: penyisihan grup sistem saling bertemu (round‑robin). Admin‑locked input + link viewer/admin terpisah.</p>
-      </div>
-      <div class="flex flex-wrap gap-2">
-        <button id="btnShare" class="px-4 py-2 rounded-xl card">Bagikan Link (Viewer)</button>
-        <button id="btnAdminLink" class="px-4 py-2 rounded-xl card">Salin Link Admin</button>
-        <button id="btnEnterAdmin" class="px-4 py-2 rounded-xl card">Masuk Admin</button>
-        <button id="btnReset" class="px-4 py-2 rounded-xl card">Reset Semua</button>
-      </div>
+<body>
+  <header class="p-4">
+    <h1 class="text-2xl font-bold">PES World Cup – Grup & Input Skor</h1>
+    <p class="text-slate-300">Hanya admin yang bisa input skor. Pemain lain hanya bisa lihat hasil.</p>
+    <div class="mt-2">
+      <label class="text-sm">Masukkan PIN Admin: </label>
+      <input type="password" id="adminPin" placeholder="••••" class="p-1 rounded bg-slate-800" />
+      <button id="btnLogin" class="px-3 py-1 bg-blue-600 rounded ml-2">Login</button>
     </div>
   </header>
 
-  <main class="max-w-6xl mx-auto px-4 pb-16">
-    <!-- Tabs -->
-    <div class="flex flex-wrap gap-2 mb-4" id="tabs"></div>
-
-    <!-- Groups container -->
-    <div id="groups" class="grid gap-6"></div>
-
-    <!-- Top 2 per group summary -->
-    <section class="mt-10">
-      <div class="card rounded-2xl p-5">
-        <div class="flex items-center justify-between mb-3">
-          <h2 class="text-lg font-semibold">Ringkasan Pemuncak Grup (Top 2)</h2>
-          <span class="text-xs text-slate-400">Tie‑breakers: Pts → GD → GF → Head‑to‑Head → Nama</span>
-        </div>
-        <div id="summary" class="grid md:grid-cols-2 gap-4"></div>
-      </div>
-    </section>
-  </main>
-
-  <template id="groupTemplate">
-    <section class="card rounded-2xl p-5">
-      <div class="flex items-center justify-between">
-        <h3 class="text-xl font-bold">Grup <span class="grp-name"></span></h3>
-        <div class="text-sm text-slate-300">Total Pertandingan: <span class="total-matches"></span></div>
-      </div>
-      <div class="mt-4 grid lg:grid-cols-2 gap-6">
-        <div>
-          <h4 class="font-semibold mb-2">Jadwal & Input Skor</h4>
-          <div class="space-y-2 matches"></div>
-        </div>
-        <div>
-          <h4 class="font-semibold mb-2">Klasemen</h4>
-          <div class="overflow-x-auto">
-            <table class="table w-full text-sm">
-              <thead class="text-slate-300">
-                <tr>
-                  <th class="text-left">Tim</th>
-                  <th>P</th>
-                  <th>W</th>
-                  <th>D</th>
-                  <th>L</th>
-                  <th>GF</th>
-                  <th>GA</th>
-                  <th>GD</th>
-                  <th>Pts</th>
-                </tr>
-              </thead>
-              <tbody class="standings"></tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-    </section>
-  </template>
-
-  <template id="matchTemplate">
-    <div class="rounded-xl p-3 card flex items-center justify-between gap-3">
-      <div class="flex items-center gap-2 min-w-0">
-        <span class="badge text-xs shrink-0">MD<span class="md-no"></span></span>
-        <div class="truncate">
-          <div class="font-semibold text-sm home"></div>
-          <div class="text-slate-400 text-xs">vs</div>
-          <div class="font-semibold text-sm away"></div>
-        </div>
-      </div>
-      <div class="flex items-center gap-2">
-        <input type="number" min="0" inputmode="numeric" class="score home-score" placeholder="0" />
-        <span class="text-slate-400">–</span>
-        <input type="number" min="0" inputmode="numeric" class="score away-score" placeholder="0" />
-      </div>
-    </div>
-  </template>
+  <main class="p-4" id="main"></main>
 
   <script>
-    // ======= DATA =======
+    // DATA
     const GROUPS = {
-      A: [
-        { name: 'NK', team: 'Italia 🇮🇹' },
-        { name: 'opik', team: 'norwegia 🇳🇴' },
-        { name: 'Ud', team: 'Belgia 🇧🇪' },
-      ],
-      B: [
-        { name: 'Rido', team: 'PORTUGAL 🇵🇹' },
-        { name: 'nuryana', team: 'england 🏴' },
-        { name: 'wahyu', team: 'jepang 🇯🇵' },
-      ],
-      C: [
-        { name: 'AMF', team: 'Netherland 🇳🇱' },
-        { name: 'Ule', team: 'Argentina 🇦🇷' },
-        { name: 'andri', team: 'burazilu 🇧🇷' },
-      ],
-      D: [
-        { name: 'Eeng', team: 'Francis 🇫🇷' },
-        { name: 'dinar', team: 'spain 🇪🇦' },
-        { name: 'mulanda', team: 'jerman' },
-      ],
+      A: ["NK - Italia 🇮🇹","opik - norwegia 🇳🇴","Ud - Belgia 🇧🇪"],
+      B: ["Rido - PORTUGAL 🇵🇹","nuryana - england 🏴","wahyu - jepang 🇯🇵"],
+      C: ["AMF - Netherland 🇳🇱","Ule - Argentina 🇦🇷","andri - burazilu 🇧🇷"],
+      D: ["Eeng - Francis 🇫🇷","dinar - spain 🇪🇦","mulanda - jerman"]
     };
 
-    // ======= STORAGE, SHARE & ADMIN =======
-    const STORAGE_KEY = 'pes_wc_scores_v2';
-    const ADMIN_KEY = 'pes_wc_admin_token_v2';
+    const ADMIN_PIN = "1234"; // ganti sesuai kebutuhan
 
-    function genToken(len=24){
-      const chars='ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-      let s='';
-      crypto.getRandomValues(new Uint8Array(len)).forEach(v=> s+=chars[v%chars.length]);
-      return s;
-    }
+    let isAdmin = false;
+    const state = JSON.parse(localStorage.getItem("pes_wc_state")||"{}")
 
-    function getURLToken(){
-      const u = new URL(location.href);
-      return u.searchParams.get('admin');
-    }
-
-    function setURLToken(tok){
-      const u = new URL(location.href);
-      if(tok) u.searchParams.set('admin', tok); else u.searchParams.delete('admin');
-      history.replaceState(null,'',u.toString());
-    }
-
-    function saveState(state){
-      // Save scores only (no admin token) to localStorage and URL hash
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-      const shareObj = { scores: state.scores };
-      const h = '#' + encodeURIComponent(JSON.stringify(shareObj));
-      const u = new URL(location.href);
-      u.hash = h;
-      history.replaceState(null, '', u.toString());
-    }
-    function loadState(){
-      // prefer hash, else localStorage
-      try{
-        if(location.hash?.length>1){
-          const obj = JSON.parse(decodeURIComponent(location.hash.slice(1)));
-          if(obj && typeof obj==='object') return { scores: obj.scores || {} };
-        }
-      }catch(e){/* ignore */}
-      try{
-        const raw = localStorage.getItem(STORAGE_KEY);
-        return raw ? JSON.parse(raw) : null;
-      }catch(e){return null}
-    }
-
-    function ensureAdminToken(){
-      let tok = localStorage.getItem(ADMIN_KEY);
-      if(!tok){ tok = genToken(); localStorage.setItem(ADMIN_KEY, tok); }
-      return tok;
-    }
-
-    function hasAdmin(){
-      const localTok = localStorage.getItem(ADMIN_KEY);
-      const urlTok = getURLToken();
-      if(urlTok && localTok !== urlTok){
-        // trust url token and persist for this device
-        localStorage.setItem(ADMIN_KEY, urlTok);
+    document.getElementById("btnLogin").addEventListener("click",()=>{
+      const val = document.getElementById("adminPin").value;
+      if(val === ADMIN_PIN){
+        isAdmin = true;
+        render();
+      } else {
+        alert("PIN salah");
       }
-      const tok = localStorage.getItem(ADMIN_KEY);
-      // Admin if URL contains the same token currently stored locally
-      return !!(getURLToken() && tok && getURLToken() === tok);
-    }
+    });
 
-    // ======= TIEBREAKERS =======
-    function h2hRank(records, fixtures){
-      const ids = records.map(r=>r.id);
-      const idx = new Map(ids.map((id,i)=>[id,i]));
-      const mini = ids.map(()=>({P:0,W:0,D:0,L:0,GF:0,GA:0,GD:0,PTS:0}));
-      for(const m of fixtures){
-        const a = idx.get(m.homeId), b = idx.get(m.awayId);
-        if(a===undefined || b===undefined) continue;
-        const hs = m.hs, as = m.as;
-        if(hs==null || as==null) continue;
-        mini[a].P++; mini[b].P++;
-        mini[a].GF+=hs; mini[a].GA+=as; mini[a].GD=mini[a].GF-mini[a].GA;
-        mini[b].GF+=as; mini[b].GA+=hs; mini[b].GD=mini[b].GF-mini[b].GA;
-        if(hs>as){mini[a].W++;mini[b].L++; mini[a].PTS+=3}
-        else if(hs<as){mini[b].W++;mini[a].L++; mini[b].PTS+=3}
-        else {mini[a].D++;mini[b].D++; mini[a].PTS++; mini[b].PTS++}
-      }
-      const arr = records.map((r,i)=>({r, m:mini[i]}));
-      arr.sort((x,y)=> y.m.PTS - x.m.PTS || y.m.GD - x.m.GD || y.m.GF - x.m.GF || x.r.name.localeCompare(y.r.name));
-      return arr.map(x=>x.r.id);
-    }
-
-    function rankTeams(teams, results){
-      const stats = new Map(teams.map(t=>[t.id,{P:0,W:0,D:0,L:0,GF:0,GA:0,GD:0,PTS:0}]));
-      for(const m of results){
-        if(m.hs==null || m.as==null) continue;
-        const a = stats.get(m.homeId), b = stats.get(m.awayId);
-        a.P++; b.P++;
-        a.GF+=m.hs; a.GA+=m.as; a.GD=a.GF-a.GA;
-        b.GF+=m.as; b.GA+=m.hs; b.GD=b.GF-b.GA;
-        if(m.hs>m.as){a.W++; b.L++; a.PTS+=3}
-        else if(m.hs<m.as){b.W++; a.L++; b.PTS+=3}
-        else {a.D++; b.D++; a.PTS++; b.PTS++}
-      }
-      const base = teams.map(t=>({id:t.id, name:t.name, s:stats.get(t.id)}));
-      base.sort((x,y)=> y.s.PTS - x.s.PTS || y.s.GD - x.s.GD || y.s.GF - x.s.GF || 0);
-      let i=0; while(i<base.length){
-        let j=i+1; while(j<base.length && base[j].s.PTS===base[i].s.PTS && base[j].s.GD===base[i].s.GD && base[j].s.GF===base[i].s.GF) j++;
-        if(j-i>1){
-          const block = base.slice(i,j);
-          const orderIds = h2hRank(block, results);
-          block.sort((a,b)=> orderIds.indexOf(a.id) - orderIds.indexOf(b.id));
-          base.splice(i, j-i, ...block);
-        }
-        i=j;
-      }
-      return base;
-    }
-
-    // ======= UI RENDER =======
-    const tabsEl = document.getElementById('tabs');
-    const groupsEl = document.getElementById('groups');
-    const summaryEl = document.getElementById('summary');
-
-    const state = loadState() || { scores: {} };
-
-    const groups = {};
-
-    function makeTeamLabel(p){
-      return `${p.name} — ${p.team}`;
-    }
-
-    function buildFixtures(arr){
-      return [ [0,1], [0,2], [1,2] ];
+    function buildFixtures(teams){
+      return [[0,1],[0,2],[1,2]];
     }
 
     function render(){
-      tabsEl.innerHTML = '';
-      groupsEl.innerHTML = '';
-      summaryEl.innerHTML = '';
-
-      const isAdmin = hasAdmin();
-
-      Object.entries(GROUPS).forEach(([grp, players], idx)=>{
-        // Tabs
-        const tab = document.createElement('button');
-        tab.className = `px-3 py-2 rounded-xl card text-sm ${idx===0? 'tab-active':''}`;
-        tab.textContent = `Grup ${grp}`;
-        tab.addEventListener('click',()=>{
-          document.querySelectorAll('#tabs > button').forEach(b=>b.classList.remove('tab-active'));
-          tab.classList.add('tab-active');
-          document.querySelectorAll('[data-group]')
-            .forEach(sec=>sec.classList.toggle('hidden', sec.getAttribute('data-group')!==grp));
-        });
-        tabsEl.appendChild(tab);
-
-        // Section
-        const gtpl = document.getElementById('groupTemplate');
-        const node = gtpl.content.cloneNode(true);
-        const section = node.querySelector('section');
-        section.setAttribute('data-group', grp);
-        if(idx!==0) section.classList.add('hidden');
-        section.querySelector('.grp-name').textContent = grp;
-
-        if(!isAdmin){
-          const lb = document.createElement('div');
-          lb.className = 'lock-badge text-slate-300 mb-2';
-          lb.innerHTML = '🔒 mode viewer · hanya admin yang bisa input skor';
-          section.prepend(lb);
-          section.classList.add('locked');
-        }
-
-        // Build team objects w/ ids
-        const teams = players.map((p,i)=>({ id:`${grp}-${i}`, name: makeTeamLabel(p) }));
-        const nameById = Object.fromEntries(teams.map(t=>[t.id,t.name]));
-
-        // Matches
-        const matchesWrap = section.querySelector('.matches');
-        const mtpl = document.getElementById('matchTemplate');
-        const pairs = buildFixtures(players);
-        section.querySelector('.total-matches').textContent = pairs.length;
-
-        pairs.forEach((pair, i)=>{
-          const [a,b] = pair;
-          const mnode = mtpl.content.cloneNode(true);
-          mnode.querySelector('.md-no').textContent = (i+1);
-          const homeId = `${grp}-${a}`; const awayId = `${grp}-${b}`;
-          mnode.querySelector('.home').textContent = nameById[homeId];
-          mnode.querySelector('.away').textContent = nameById[awayId];
-
-          const k = keyFor(grp,a,b);
-          const hsInput = mnode.querySelector('.home-score');
-          const asInput = mnode.querySelector('.away-score');
-
-          const saved = state.scores[k] || null;
-          if(saved){
-            if(saved.hs!==null) hsInput.value = saved.hs;
-            if(saved.as!==null) asInput.value = saved.as;
+      const main = document.getElementById("main");
+      main.innerHTML = '';
+      Object.entries(GROUPS).forEach(([grp,teams])=>{
+        const sec = document.createElement("div");
+        sec.className = "card";
+        sec.innerHTML = `<h2 class="text-xl font-semibold mb-2">Grup ${grp}</h2>`;
+        const tbl = document.createElement("table");
+        tbl.className = "w-full text-sm";
+        tbl.innerHTML = `<tr><th>Match</th><th>Skor</th></tr>`;
+        buildFixtures(teams).forEach(([a,b],i)=>{
+          const key = `${grp}-${a}-${b}`;
+          const saved = state[key]||{};
+          const tr = document.createElement("tr");
+          tr.innerHTML = `
+            <td>${teams[a]} vs ${teams[b]}</td>
+            <td>
+              <input type="number" min="0" id="${key}-a" value="${saved.a??''}" ${isAdmin?'':'disabled'}>
+              -
+              <input type="number" min="0" id="${key}-b" value="${saved.b??''}" ${isAdmin?'':'disabled'}>
+            </td>`;
+          tbl.appendChild(tr);
+          if(isAdmin){
+            ["a","b"].forEach(side=>{
+              document.addEventListener("input",e=>{
+                if(e.target.id===`${key}-${side}`){
+                  state[key] = state[key]||{};
+                  state[key][side] = parseInt(e.target.value)||0;
+                  localStorage.setItem("pes_wc_state",JSON.stringify(state));
+                }
+              })
+            });
           }
-
-          function onChange(){
-            if(!hasAdmin()) return;
-            const hs = hsInput.value===''? null : parseInt(hsInput.value,10);
-            const as = asInput.value===''? null : parseInt(asInput.value,10);
-            state.scores[k] = { hs, as, homeId, awayId };
-            updateStandings();
-            saveState(state);
-          }
-          hsInput.addEventListener('input', onChange);
-          asInput.addEventListener('input', onChange);
-
-          if(!isAdmin){ hsInput.disabled = true; asInput.disabled = true; }
-
-          matchesWrap.appendChild(mnode);
         });
-
-        const tbody = section.querySelector('.standings');
-        function drawStandings(){
-          const rows = rankTeams(teams, collectResultsForGroup(grp));
-          tbody.innerHTML='';
-          rows.forEach(r=>{
-            const tr = document.createElement('tr');
-            tr.innerHTML = `
-              <td class="text-left">${r.name}</td>
-              <td class="text-center">${r.s.P}</td>
-              <td class="text-center">${r.s.W}</td>
-              <td class="text-center">${r.s.D}</td>
-              <td class="text-center">${r.s.L}</td>
-              <td class="text-center">${r.s.GF}</td>
-              <td class="text-center">${r.s.GA}</td>
-              <td class="text-center">${r.s.GD}</td>
-              <td class="text-center font-semibold">${r.s.PTS}</td>
-            `;
-            tbody.appendChild(tr);
-          })
-        }
-        groups[grp] = { drawStandings, teams };
-
-        groupsEl.appendChild(node);
-      });
-
-      updateStandings();
-    }
-
-    function keyFor(grp,a,b){return `${grp}-${Math.min(a,b)}-${Math.max(a,b)}`}
-
-    function collectResultsForGroup(grp){
-      const players = GROUPS[grp];
-      const pairs = [[0,1],[0,2],[1,2]];
-      const out=[];
-      pairs.forEach(([a,b])=>{
-        const k = keyFor(grp,a,b);
-        const saved = state.scores[k] || null;
-        const homeId = `${grp}-${a}`; const awayId = `${grp}-${b}`;
-        out.push({ homeId, awayId, hs: saved?.hs ?? null, as: saved?.as ?? null });
-      });
-      return out;
-    }
-
-    function updateStandings(){
-      Object.keys(GROUPS).forEach(grp=>{ groups[grp]?.drawStandings(); });
-      summaryEl.innerHTML='';
-      Object.entries(groups).forEach(([grp, g])=>{
-        const rows = rankTeams(g.teams, collectResultsForGroup(grp));
-        const top = rows.slice(0,2);
-        const div = document.createElement('div');
-        div.className = 'rounded-xl p-4 card';
-        div.innerHTML = `
-          <div class=\"flex items-center justify-between mb-2\">
-            <div class=\"font-semibold\">Grup ${grp}</div>
-            <div class=\"text-xs text-slate-400\">${rows.reduce((p,c)=>p+(c.s.PTS||0),0)} total pts</div>
-          </div>
-          <ol class=\"space-y-1 text-sm\">
-            ${top.map((t,i)=>`<li class=\"flex items-center justify-between\"><span>${i+1}. ${t.name}</span><span class=\"badge\">${t.s.PTS} pts | GD ${t.s.GD}</span></li>`).join('')}
-          </ol>`;
-        summaryEl.appendChild(div);
+        sec.appendChild(tbl);
+        main.appendChild(sec);
       });
     }
 
-    // ======= Buttons =======
-    document.getElementById('btnShare').addEventListener('click',()=>{
-      saveState(state);
-      const u = new URL(location.href);
-      u.searchParams.delete('admin');
-      navigator.clipboard.writeText(u.toString()).then(()=>{
-        toast('Link viewer disalin. Kirim ke peserta.');
-      }).catch(()=>{ alert('Salin manual: '+u.toString()); })
-    });
-
-    document.getElementById('btnAdminLink').addEventListener('click',()=>{
-      const tok = ensureAdminToken();
-      const u = new URL(location.href);
-      u.searchParams.set('admin', tok);
-      navigator.clipboard.writeText(u.toString()).then(()=>{
-        toast('Link admin disalin. Simpan baik‑baik.');
-      }).catch(()=>{ alert('Salin manual: '+u.toString()); })
-    });
-
-    document.getElementById('btnEnterAdmin').addEventListener('click',()=>{
-      const v = prompt('Masukkan token admin (dari link admin):');
-      if(!v) return;
-      localStorage.setItem(ADMIN_KEY, v.trim());
-      setURLToken(v.trim());
-      location.reload();
-    });
-
-    document.getElementById('btnReset').addEventListener('click',()=>{
-      if(!confirm('Hapus semua skor?')) return;
-      state.scores = {};
-      saveState(state);
-      location.reload();
-    });
-
-    function toast(msg){
-      const el = document.createElement('div');
-      el.textContent = msg;
-      el.className = 'fixed left-1/2 -translate-x-1/2 bottom-6 px-4 py-2 rounded-xl card text-sm';
-      document.body.appendChild(el);
-      setTimeout(()=>{el.remove()}, 2200);
-    }
-
-    (function init(){
-      const urlTok = getURLToken();
-      if(urlTok){ localStorage.setItem(ADMIN_KEY, urlTok); }
-      render();
-    })();
+    render();
   </script>
 </body>
 </html>
