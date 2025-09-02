@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>PES World Cup – Grup & Input Skor</title>
+  <title>PES World Cup – Grup & Input Skor (Admin Locked)</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
@@ -17,6 +17,8 @@
     .badge{background:#0c1227;border:1px solid rgba(255,255,255,.08);border-radius:.4rem;padding:.15rem .45rem}
     .tab-active{background:#1b2448}
     .table th,.table td{padding:.55rem .6rem;border-bottom:1px dashed rgba(255,255,255,.06)}
+    .locked .score{opacity:.6;pointer-events:none}
+    .lock-badge{font-size:.75rem;opacity:.8}
   </style>
 </head>
 <body class="min-h-screen">
@@ -24,10 +26,12 @@
     <div class="flex flex-col md:flex-row md:items-end md:justify-between gap-5">
       <div>
         <h1 class="text-2xl md:text-3xl font-bold tracking-tight">PES World Cup – Grup & Input Skor</h1>
-        <p class="text-slate-300 mt-2">Format: penyisihan grup sistem saling bertemu (round‑robin). Masukkan skor tiap laga, klasemen otomatis dihitung.</p>
+        <p class="text-slate-300 mt-2">Format: penyisihan grup sistem saling bertemu (round‑robin). Admin‑locked input + link viewer/admin terpisah.</p>
       </div>
-      <div class="flex gap-2">
-        <button id="btnShare" class="px-4 py-2 rounded-xl card">Bagikan Link</button>
+      <div class="flex flex-wrap gap-2">
+        <button id="btnShare" class="px-4 py-2 rounded-xl card">Bagikan Link (Viewer)</button>
+        <button id="btnAdminLink" class="px-4 py-2 rounded-xl card">Salin Link Admin</button>
+        <button id="btnEnterAdmin" class="px-4 py-2 rounded-xl card">Masuk Admin</button>
         <button id="btnReset" class="px-4 py-2 rounded-xl card">Reset Semua</button>
       </div>
     </div>
@@ -111,36 +115,68 @@
     const GROUPS = {
       A: [
         { name: 'NK', team: 'Italia 🇮🇹' },
-        { name: 'opik', team: 'norwegia 🇳🇴' },
+        { name: 'Opik', team: 'Norwegia 🇳🇴' },
         { name: 'Ud', team: 'Belgia 🇧🇪' },
       ],
       B: [
-        { name: 'Rido', team: 'PORTUGAL 🇵🇹' },
-        { name: 'nuryana', team: 'england 🏴' },
-        { name: 'wahyu', team: 'jepang 🇯🇵' },
+        { name: 'Rido', team: 'Portugal 🇵🇹' },
+        { name: 'Nuryana', team: 'Inggris 🏴' }, // <--- perbaikan di sini
+        { name: 'Wahyu', team: 'Jepang 🇯🇵' },
       ],
       C: [
-        { name: 'AMF', team: 'Netherland 🇳🇱' },
+        { name: 'AMF', team: 'Belanda 🇳🇱' },    // Netherland -> Belanda
         { name: 'Ule', team: 'Argentina 🇦🇷' },
-        { name: 'andri', team: 'burazilu 🇧🇷' },
+        { name: 'Andri', team: 'Brazil 🇧🇷' },
       ],
       D: [
-        { name: 'Eeng', team: 'Francis 🇫🇷' },
-        { name: 'dinar', team: 'spain 🇪🇦' },
-        { name: 'mulanda', team: 'jerman' },
+        { name: 'Eeng', team: 'Prancis 🇫🇷' },   // Francis -> Prancis
+        { name: 'Dinar', team: 'Spanyol 🇪🇸' },  // Spain -> Spanyol
+        { name: 'Mulanda', team: 'Jerman 🇩🇪' },
       ],
     };
 
-    // ======= STORAGE & SHARE =======
-    const STORAGE_KEY = 'pes_wc_scores_v1';
+    // ======= STORAGE, SHARE & ADMIN =======
+    const STORAGE_KEY = 'pes_wc_scores_v2';
+    const ADMIN_KEY = 'pes_wc_admin_token_v2';
+
+    function genToken(len=24){
+      const chars='ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+      let s='';
+      if (window.crypto && window.crypto.getRandomValues) {
+        window.crypto.getRandomValues(new Uint8Array(len)).forEach(v=> s+=chars[v%chars.length]);
+      } else {
+        // Fallback untuk lingkungan non-browser
+        for(let i=0;i<len;i++) s+=chars[Math.floor(Math.random()*chars.length)];
+      }
+      return s;
+    }
+
+    function getURLToken(){
+      const u = new URL(location.href);
+      return u.searchParams.get('admin');
+    }
+
+    function setURLToken(tok){
+      const u = new URL(location.href);
+      if(tok) u.searchParams.set('admin', tok); else u.searchParams.delete('admin');
+      history.replaceState(null,'',u.toString());
+    }
+
     function saveState(state){
+      // Save scores only (no admin token) to localStorage and URL hash
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-      history.replaceState(null, '', '#' + encodeURIComponent(JSON.stringify(state)));
+      const shareObj = { scores: state.scores };
+      const h = '#' + encodeURIComponent(JSON.stringify(shareObj));
+      const u = new URL(location.href);
+      u.hash = h;
+      history.replaceState(null, '', u.toString());
     }
     function loadState(){
+      // prefer hash, else localStorage
       try{
         if(location.hash?.length>1){
-          return JSON.parse(decodeURIComponent(location.hash.slice(1)));
+          const obj = JSON.parse(decodeURIComponent(location.hash.slice(1)));
+          if(obj && typeof obj==='object') return { scores: obj.scores || {} };
         }
       }catch(e){/* ignore */}
       try{
@@ -149,19 +185,32 @@
       }catch(e){return null}
     }
 
-    // Encode match key: e.g., "A-0-1" means group A, match between team index 0 vs 1
-    const keyFor = (grp,a,b)=>`${grp}-${Math.min(a,b)}-${Math.max(a,b)}`;
+    function ensureAdminToken(){
+      let tok = localStorage.getItem(ADMIN_KEY);
+      if(!tok){ tok = genToken(); localStorage.setItem(ADMIN_KEY, tok); }
+      return tok;
+    }
+
+    function hasAdmin(){
+      const localTok = localStorage.getItem(ADMIN_KEY);
+      const urlTok = getURLToken();
+      if(urlTok && localTok !== urlTok){
+        // trust url token and persist for this device
+        localStorage.setItem(ADMIN_KEY, urlTok);
+      }
+      const tok = localStorage.getItem(ADMIN_KEY);
+      // Admin if URL contains the same token currently stored locally
+      return !!(getURLToken() && tok && getURLToken() === tok);
+    }
 
     // ======= TIEBREAKERS =======
     function h2hRank(records, fixtures){
-      // records: array of {id, name, stats}
-      // fixtures: list of matches with results
       const ids = records.map(r=>r.id);
       const idx = new Map(ids.map((id,i)=>[id,i]));
       const mini = ids.map(()=>({P:0,W:0,D:0,L:0,GF:0,GA:0,GD:0,PTS:0}));
       for(const m of fixtures){
         const a = idx.get(m.homeId), b = idx.get(m.awayId);
-        if(a===undefined || b===undefined) continue; // skip matches not among tied teams
+        if(a===undefined || b===undefined) continue;
         const hs = m.hs, as = m.as;
         if(hs==null || as==null) continue;
         mini[a].P++; mini[b].P++;
@@ -172,18 +221,11 @@
         else {mini[a].D++;mini[b].D++; mini[a].PTS++; mini[b].PTS++}
       }
       const arr = records.map((r,i)=>({r, m:mini[i]}));
-      arr.sort((x,y)=>
-        y.m.PTS - x.m.PTS ||
-        y.m.GD - x.m.GD ||
-        y.m.GF - x.m.GF ||
-        x.r.name.localeCompare(y.r.name)
-      );
+      arr.sort((x,y)=> y.m.PTS - x.m.PTS || y.m.GD - x.m.GD || y.m.GF - x.r.name.localeCompare(y.r.name));
       return arr.map(x=>x.r.id);
     }
 
     function rankTeams(teams, results){
-      // teams: [{id, name}]
-      // results: list of {homeId, awayId, hs, as}
       const stats = new Map(teams.map(t=>[t.id,{P:0,W:0,D:0,L:0,GF:0,GA:0,GD:0,PTS:0}]));
       for(const m of results){
         if(m.hs==null || m.as==null) continue;
@@ -196,18 +238,9 @@
         else {a.D++; b.D++; a.PTS++; b.PTS++}
       }
       const base = teams.map(t=>({id:t.id, name:t.name, s:stats.get(t.id)}));
-      // primary sort
-      base.sort((x,y)=>
-        y.s.PTS - x.s.PTS ||
-        y.s.GD - x.s.GD ||
-        y.s.GF - x.s.GF ||
-        0
-      );
-      // resolve ties using H2H among tied blocks
-      let i=0;
-      while(i<base.length){
-        let j=i+1;
-        while(j<base.length && base[j].s.PTS===base[i].s.PTS && base[j].s.GD===base[i].s.GD && base[j].s.GF===base[i].s.GF) j++;
+      base.sort((x,y)=> y.s.PTS - x.s.PTS || y.s.GD - x.s.GD || y.s.GF - x.s.GF || 0);
+      let i=0; while(i<base.length){
+        let j=i+1; while(j<base.length && base[j].s.PTS===base[i].s.PTS && base[j].s.GD===base[i].s.GD && base[j].s.GF===base[i].s.GF) j++;
         if(j-i>1){
           const block = base.slice(i,j);
           const orderIds = h2hRank(block, results);
@@ -229,11 +262,14 @@
     const groups = {};
 
     function makeTeamLabel(p){
-      return `${p.name} — ${p.team}`;
+      // Pisahkan bendera dari nama tim jika ada
+      const match = p.team.match(/(.*?)([\u{1F1E6}-\u{1F1FF}]{2,}|🏴)?$/u);
+      let teamName = match ? match[1].trim() : p.team;
+      let flag = match ? match[2] || '' : '';
+      return `${capitalizeWords(p.name)} — ${capitalizeWords(teamName)} ${flag}`.trim();
     }
 
     function buildFixtures(arr){
-      // For 3 teams: [0vs1, 0vs2, 1vs2]
       return [ [0,1], [0,2], [1,2] ];
     }
 
@@ -241,6 +277,8 @@
       tabsEl.innerHTML = '';
       groupsEl.innerHTML = '';
       summaryEl.innerHTML = '';
+
+      const isAdmin = hasAdmin();
 
       Object.entries(GROUPS).forEach(([grp, players], idx)=>{
         // Tabs
@@ -263,6 +301,14 @@
         if(idx!==0) section.classList.add('hidden');
         section.querySelector('.grp-name').textContent = grp;
 
+        if(!isAdmin){
+          const lb = document.createElement('div');
+          lb.className = 'lock-badge text-slate-300 mb-2';
+          lb.innerHTML = '🔒 mode viewer · hanya admin yang bisa input skor';
+          section.prepend(lb);
+          section.classList.add('locked');
+        }
+
         // Build team objects w/ ids
         const teams = players.map((p,i)=>({ id:`${grp}-${i}`, name: makeTeamLabel(p) }));
         const nameById = Object.fromEntries(teams.map(t=>[t.id,t.name]));
@@ -273,7 +319,6 @@
         const pairs = buildFixtures(players);
         section.querySelector('.total-matches').textContent = pairs.length;
 
-        const results = [];
         pairs.forEach((pair, i)=>{
           const [a,b] = pair;
           const mnode = mtpl.content.cloneNode(true);
@@ -286,7 +331,6 @@
           const hsInput = mnode.querySelector('.home-score');
           const asInput = mnode.querySelector('.away-score');
 
-          // preload state
           const saved = state.scores[k] || null;
           if(saved){
             if(saved.hs!==null) hsInput.value = saved.hs;
@@ -294,6 +338,7 @@
           }
 
           function onChange(){
+            if(!hasAdmin()) return;
             const hs = hsInput.value===''? null : parseInt(hsInput.value,10);
             const as = asInput.value===''? null : parseInt(asInput.value,10);
             state.scores[k] = { hs, as, homeId, awayId };
@@ -303,14 +348,11 @@
           hsInput.addEventListener('input', onChange);
           asInput.addEventListener('input', onChange);
 
-          matchesWrap.appendChild(mnode);
+          if(!isAdmin){ hsInput.disabled = true; asInput.disabled = true; }
 
-          // collect for initial render
-          const hs = saved?.hs ?? null; const as = saved?.as ?? null;
-          results.push({ homeId, awayId, hs, as });
+          matchesWrap.appendChild(mnode);
         });
 
-        // Standings table render function
         const tbody = section.querySelector('.standings');
         function drawStandings(){
           const rows = rankTeams(teams, collectResultsForGroup(grp));
@@ -339,9 +381,11 @@
       updateStandings();
     }
 
+    function keyFor(grp,a,b){return `${grp}-${Math.min(a,b)}-${Math.max(a,b)}`}
+
     function collectResultsForGroup(grp){
       const players = GROUPS[grp];
-      const pairs = buildFixtures(players);
+      const pairs = [[0,1],[0,2],[1,2]];
       const out=[];
       pairs.forEach(([a,b])=>{
         const k = keyFor(grp,a,b);
@@ -353,12 +397,7 @@
     }
 
     function updateStandings(){
-      // per group
-      Object.keys(GROUPS).forEach(grp=>{
-        const g = groups[grp];
-        g?.drawStandings();
-      });
-      // summary top 2
+      Object.keys(GROUPS).forEach(grp=>{ groups[grp]?.drawStandings(); });
       summaryEl.innerHTML='';
       Object.entries(groups).forEach(([grp, g])=>{
         const rows = rankTeams(g.teams, collectResultsForGroup(grp));
@@ -366,27 +405,44 @@
         const div = document.createElement('div');
         div.className = 'rounded-xl p-4 card';
         div.innerHTML = `
-          <div class="flex items-center justify-between mb-2">
-            <div class="font-semibold">Grup ${grp}</div>
-            <div class="text-xs text-slate-400">${rows.reduce((p,c)=>p+(c.s.PTS||0),0)} total pts</div>
+          <div class=\"flex items-center justify-between mb-2\">
+            <div class=\"font-semibold\">Grup ${grp}</div>
+            <div class=\"text-xs text-slate-400\">${rows.reduce((p,c)=>p+(c.s.PTS||0),0)} total pts</div>
           </div>
-          <ol class="space-y-1 text-sm">
-            ${top.map((t,i)=>`<li class="flex items-center justify-between"><span>${i+1}. ${t.name}</span><span class="badge">${t.s.PTS} pts | GD ${t.s.GD}</span></li>`).join('')}
+          <ol class=\"space-y-1 text-sm\">
+            ${top.map((t,i)=>`<li class=\"flex items-center justify-between\"><span>${i+1}. ${t.name}</span><span class=\"badge\">${t.s.PTS} pts | GD ${t.s.GD}</span></li>`).join('')}
           </ol>`;
         summaryEl.appendChild(div);
       });
     }
 
-    // Buttons
+    // ======= Buttons =======
     document.getElementById('btnShare').addEventListener('click',()=>{
       saveState(state);
-      const url = location.href;
-      navigator.clipboard.writeText(url).then(()=>{
-        toast('Link disalin. Kirim ke teman agar bisa melihat skor yang sama.');
-      }).catch(()=>{
-        alert('Salin manual: '+url);
-      })
+      const u = new URL(location.href);
+      u.searchParams.delete('admin');
+      navigator.clipboard.writeText(u.toString()).then(()=>{
+        toast('Link viewer disalin. Kirim ke peserta.');
+      }).catch(()=>{ alert('Salin manual: '+u.toString()); })
     });
+
+    document.getElementById('btnAdminLink').addEventListener('click',()=>{
+      const tok = ensureAdminToken();
+      const u = new URL(location.href);
+      u.searchParams.set('admin', tok);
+      navigator.clipboard.writeText(u.toString()).then(()=>{
+        toast('Link admin disalin. Simpan baik‑baik.');
+      }).catch(()=>{ alert('Salin manual: '+u.toString()); })
+    });
+
+    document.getElementById('btnEnterAdmin').addEventListener('click',()=>{
+      const v = prompt('Masukkan token admin (dari link admin):');
+      if(!v) return;
+      localStorage.setItem(ADMIN_KEY, v.trim());
+      setURLToken(v.trim());
+      location.reload();
+    });
+
     document.getElementById('btnReset').addEventListener('click',()=>{
       if(!confirm('Hapus semua skor?')) return;
       state.scores = {};
@@ -394,7 +450,6 @@
       location.reload();
     });
 
-    // Tiny toast
     function toast(msg){
       const el = document.createElement('div');
       el.textContent = msg;
@@ -403,8 +458,15 @@
       setTimeout(()=>{el.remove()}, 2200);
     }
 
-    // Init
-    render();
+    function capitalizeWords(str) {
+      return str.replace(/\b\w/g, l => l.toUpperCase());
+    }
+
+    (function init(){
+      const urlTok = getURLToken();
+      if(urlTok){ localStorage.setItem(ADMIN_KEY, urlTok); }
+      render();
+    })();
   </script>
 </body>
 </html>
