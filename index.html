@@ -368,7 +368,7 @@
           const k = keyFor(grp,a,b);
           const hsInput = mnode.querySelector('.home-score');
           const asInput = mnode.querySelector('.away-score');
-          const swapBtn = mnode.querySelector('.swap-btn');
+          const swapBtn = mnode.querySelector('.swap-btn'); // may be null in current template
 
           // Home/away mapping
           const homeId = `${grp}-${a}`;
@@ -394,7 +394,9 @@
           asInput.addEventListener('input', persistFromInputs);
 
           if(!isAdmin){
-            hsInput.disabled = true; asInput.disabled = true; swapBtn.style.display = 'none';
+            hsInput.disabled = true;
+            asInput.disabled = true;
+            if(swapBtn) swapBtn.style.display = 'none';
           }
 
           matchesWrap.appendChild(mnode);
