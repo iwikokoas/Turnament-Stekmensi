@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>PES World Cup STEKMENSI</title>
+  <title>PES World Cup STEKMENSI (Admin Locked)</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
@@ -26,7 +26,7 @@
     <div class="flex flex-col md:flex-row md:items-end md:justify-between gap-5">
       <div>
         <h1 class="text-2xl md:text-3xl font-bold tracking-tight">PES World Cup STEKMENSI</h1>
-        <p class="text-slate-300 mt-2">Format: penyisihan grup sistem saling bertemu (round‑robin). Admin‑locked input + link viewer/admin terpisah.</p>
+        <p class="text-slate-300 mt-2">Format: penyisihan grup sistem saling bertemu (round‑robin).</p>
       </div>
       <div class="flex flex-wrap gap-2">
         <button id="btnEnterAdmin" class="px-4 py-2 rounded-xl card">Masuk Admin</button>
@@ -191,16 +191,18 @@
       return tok;
     }
 
-    function hasAdmin(){
+    function hasAdmin() {
       const localTok = localStorage.getItem(ADMIN_KEY);
       const urlTok = getURLToken();
-      if(urlTok && localTok !== urlTok){
-        // trust url token and persist for this device
-        localStorage.setItem(ADMIN_KEY, urlTok);
+      // Admin aktif jika token di localStorage sudah ada dan sama dengan token di URL (jika ada)
+      if (urlTok) {
+        if (localTok !== urlTok) {
+          localStorage.setItem(ADMIN_KEY, urlTok);
+        }
+        return localStorage.getItem(ADMIN_KEY) === urlTok;
       }
-      const tok = localStorage.getItem(ADMIN_KEY);
-      // Admin if URL contains the same token currently stored locally
-      return !!(getURLToken() && tok && getURLToken() === tok);
+      // Jika tidak ada token di URL, tetap admin jika localStorage sudah ada token
+      return !!localTok;
     }
 
     // ======= TIEBREAKERS =======
