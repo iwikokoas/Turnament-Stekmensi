@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>PES World Cup – Grup & Input Skor (Admin Locked)</title>
+  <title>PES World Cup STEKMENSI</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
@@ -25,14 +25,13 @@
   <header class="max-w-6xl mx-auto px-4 pt-8 pb-4">
     <div class="flex flex-col md:flex-row md:items-end md:justify-between gap-5">
       <div>
-        <h1 class="text-2xl md:text-3xl font-bold tracking-tight">PES World Cup – Grup & Input Skor</h1>
+        <h1 class="text-2xl md:text-3xl font-bold tracking-tight">PES World Cup STEKMENSI</h1>
         <p class="text-slate-300 mt-2">Format: penyisihan grup sistem saling bertemu (round‑robin). Admin‑locked input + link viewer/admin terpisah.</p>
       </div>
       <div class="flex flex-wrap gap-2">
-        <button id="btnShare" class="px-4 py-2 rounded-xl card">Bagikan Link (Viewer)</button>
-        <button id="btnAdminLink" class="px-4 py-2 rounded-xl card">Salin Link Admin</button>
         <button id="btnEnterAdmin" class="px-4 py-2 rounded-xl card">Masuk Admin</button>
-        <button id="btnReset" class="px-4 py-2 rounded-xl card">Reset Semua</button>
+        <!-- Tombol Reset hanya untuk admin -->
+        <button id="btnReset" class="px-4 py-2 rounded-xl card" style="display:none;">Reset Semua</button>
       </div>
     </div>
   </header>
@@ -120,7 +119,7 @@
       ],
       B: [
         { name: 'Rido', team: 'Portugal 🇵🇹' },
-        { name: 'Nuryana', team: 'Inggris 🏴' }, // <--- perbaikan di sini
+        { name: 'Nuryana', team: 'England 🏴' }, // <--- perbaikan di sini
         { name: 'Wahyu', team: 'Jepang 🇯🇵' },
       ],
       C: [
@@ -159,7 +158,8 @@
     function setURLToken(tok){
       const u = new URL(location.href);
       if(tok) u.searchParams.set('admin', tok); else u.searchParams.delete('admin');
-      history.replaceState(null,'',u.toString());
+      // Hapus password dari bar browser setelah validasi
+      history.replaceState(null,'',u.origin + u.pathname + u.hash);
     }
 
     function saveState(state){
@@ -279,6 +279,9 @@
       summaryEl.innerHTML = '';
 
       const isAdmin = hasAdmin();
+
+      // Tampilkan tombol reset hanya untuk admin
+      document.getElementById('btnReset').style.display = isAdmin ? '' : 'none';
 
       Object.entries(GROUPS).forEach(([grp, players], idx)=>{
         // Tabs
@@ -417,24 +420,6 @@
     }
 
     // ======= Buttons =======
-    document.getElementById('btnShare').addEventListener('click',()=>{
-      saveState(state);
-      const u = new URL(location.href);
-      u.searchParams.delete('admin');
-      navigator.clipboard.writeText(u.toString()).then(()=>{
-        toast('Link viewer disalin. Kirim ke peserta.');
-      }).catch(()=>{ alert('Salin manual: '+u.toString()); })
-    });
-
-    document.getElementById('btnAdminLink').addEventListener('click',()=>{
-      const tok = ensureAdminToken();
-      const u = new URL(location.href);
-      u.searchParams.set('admin', tok);
-      navigator.clipboard.writeText(u.toString()).then(()=>{
-        toast('Link admin disalin. Simpan baik‑baik.');
-      }).catch(()=>{ alert('Salin manual: '+u.toString()); })
-    });
-
     document.getElementById('btnEnterAdmin').addEventListener('click',()=>{
       const v = prompt('Masukkan token admin (dari link admin):');
       if(!v) return;
