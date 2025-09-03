@@ -57,6 +57,7 @@
         <button id="btnEnterAdmin" class="px-4 py-2 rounded-xl card">Masuk Admin</button>
         <!-- Tombol Reset hanya untuk admin -->
         <button id="btnReset" class="px-4 py-2 rounded-xl card" style="display:none;">Reset Semua</button>
+        <button id="btnExitAdmin" class="px-4 py-2 rounded-xl card" style="display:none;">Keluar Admin</button>
       </div>
     </div>
   </header>
@@ -165,6 +166,7 @@
     // Jika tidak diisi, aplikasi otomatis kembali ke penyimpanan lokal (hanya browser sendiri).
     const STORAGE_KEY = 'pes_wc_scores_v2';
     const ADMIN_KEY = 'pes_wc_admin_token_v2';
+    const ADMIN_PASSWORD = '123';
     // Remote via Supabase (preferred) or Firebase
     let SUPABASE = null;
     let SUPABASE_ENABLED = false;
@@ -233,26 +235,9 @@
       }catch(e){return null}
     }
 
-    function ensureAdminToken(){
-      let tok = localStorage.getItem(ADMIN_KEY);
-      if(!tok){ tok = genToken(); localStorage.setItem(ADMIN_KEY, tok); }
-      return tok;
-    }
+    function clearAdmin(){ localStorage.removeItem(ADMIN_KEY); }
 
-    function hasAdmin() {
-      const localTok = localStorage.getItem(ADMIN_KEY);
-      const urlTok = getURLToken();
-      // Jika token ada di URL, simpan ke localStorage sehingga persist setelah reload,
-      // lalu hapus token dari URL untuk keamanan.
-      if (urlTok) {
-        localStorage.setItem(ADMIN_KEY, urlTok);
-        // Hapus token dari URL agar tidak terlihat di address bar
-        setURLToken(null);
-        return true;
-      }
-      // Jika tidak ada token di URL, cukup cek localStorage
-      return !!localTok;
-    }
+    function hasAdmin() { return localStorage.getItem(ADMIN_KEY) === ADMIN_PASSWORD; }
 
     // ======= REMOTE (Firebase) =======
     function initRemoteIfConfigured(){
@@ -401,8 +386,10 @@
 
       const isAdmin = hasAdmin();
 
-      // Tampilkan tombol reset hanya untuk admin
+      // Tampilkan tombol reset & exit hanya untuk admin; tombol masuk untuk non-admin
       document.getElementById('btnReset').style.display = isAdmin ? '' : 'none';
+      document.getElementById('btnExitAdmin').style.display = isAdmin ? '' : 'none';
+      document.getElementById('btnEnterAdmin').style.display = isAdmin ? 'none' : '';
 
       Object.entries(GROUPS).forEach(([grp, players], idx)=>{
         // Tabs
@@ -552,19 +539,27 @@
 
     // ======= Buttons =======
     document.getElementById('btnEnterAdmin').addEventListener('click',()=>{
-      const v = prompt('Masukkan token admin (dari link admin):');
+      const v = prompt('Masukkan password admin:');
       if(!v) return;
-      localStorage.setItem(ADMIN_KEY, v.trim());
-      // pastikan token tidak ditampilkan di URL
-      setURLToken(null);
-      toast('Admin mode diaktifkan');
-      location.reload();
+      if (v.trim() === ADMIN_PASSWORD) {
+        localStorage.setItem(ADMIN_KEY, ADMIN_PASSWORD);
+        toast('Admin mode diaktifkan');
+        location.reload();
+      } else {
+        toast('Password salah');
+      }
     });
 
     document.getElementById('btnReset').addEventListener('click',()=>{
       if(!confirm('Hapus semua skor?')) return;
       state.scores = {};
       saveState(state);
+      location.reload();
+    });
+
+    document.getElementById('btnExitAdmin').addEventListener('click',()=>{
+      clearAdmin();
+      toast('Admin dimatikan');
       location.reload();
     });
 
