@@ -8,6 +8,28 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
   <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Twemoji to ensure flags render consistently across devices -->
+  <script src="https://cdn.jsdelivr.net/npm/twemoji@14.0.2/dist/twemoji.min.js"></script>
+  <!-- Optional: Firebase for shared public storage (only used if configured) -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+  <!-- Optional: Supabase for shared public storage (preferred if configured) -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.43.4/dist/umd/supabase.min.js"></script>
+  <script>
+    // Supabase config (provided by user)
+    window.SUPABASE_URL = "https://jkjhpagjllrvyhuqgcek.supabase.co";
+    window.SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpramhwYWdqbGxydnlodXFnY2VrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY5MDMxNDEsImV4cCI6MjA3MjQ3OTE0MX0.FmGs0c_GW7LnPXa7_bYoNnVQhoinYtotW79iZLRBJBM";
+  </script>
+  <script>
+    // Firebase config injected per user request. Edit if your project uses different domains/IDs.
+    window.FIREBASE_CONFIG = {
+      apiKey: "AIzaSyAhlrWbJ1vTW4ImuXyg19zt71n8B-IslIc",
+      databaseURL: "https://pes-world-cup-default-rtdb.asia-southeast1.firebasedatabase.app/",
+      // The following are optional for Realtime Database usage without Auth. Adjust if needed.
+      authDomain: "pes-world-cup.firebaseapp.com",
+      projectId: "pes-world-cup"
+    };
+  </script>
   <style>
     :root{--bg:#0b1020;--card:#121832;--muted:#94a3b8;--ring:#3b82f6}
     html,body{background:linear-gradient(180deg,#0b1020,#0f1630 40%,#0b1020);color:white;font-family:Inter,system-ui,Segoe UI,Roboto,Arial}
@@ -19,6 +41,9 @@
     .table th,.table td{padding:.55rem .6rem;border-bottom:1px dashed rgba(255,255,255,.06)}
     .locked .score{opacity:.6;pointer-events:none}
     .lock-badge{font-size:.75rem;opacity:.8}
+    /* Style for twemoji images to align with text */
+    .emoji{height:1em;width:1em;margin:0 .1em;vertical-align:-0.15em;display:inline-block}
+    .home,.away{white-space:nowrap}
   </style>
 </head>
 <body class="min-h-screen">
@@ -119,13 +144,13 @@
       ],
       B: [
         { name: 'Rido', team: 'Portugal 🇵🇹' },
-        { name: 'Nuryana', team: 'England 🏴󠁧󠁢󠁥󠁮󠁧󠁿' }, // <--- perbaikan di sini
+        { name: 'Nuryana', team: 'Inggris 🇬🇧' }, // <--- perbaikan di sini
         { name: 'Wahyu', team: 'Uruguay 🇺🇾' },
       ],
       C: [
         { name: 'AMF', team: 'Belanda 🇳🇱' },    // Netherland -> Belanda
         { name: 'Ule', team: 'Argentina 🇦🇷' },
-        { name: 'Andri', team: 'Brazil 🇧🇷' },
+        { name: 'Andri', team: 'Brasil 🇧🇷' },
       ],
       D: [
         { name: 'Eeng', team: 'Prancis 🇫🇷' },   // Francis -> Prancis
@@ -135,8 +160,18 @@
     };
 
     // ======= STORAGE, SHARE & ADMIN =======
+    // Untuk menyimpan data agar bisa dilihat semua orang, siapkan Firebase config berikut di atas script ini:
+    // window.FIREBASE_CONFIG = { apiKey: "...", authDomain: "...", databaseURL: "https://<project>.firebaseio.com", projectId: "...", storageBucket: "...", messagingSenderId: "...", appId: "..." };
+    // Jika tidak diisi, aplikasi otomatis kembali ke penyimpanan lokal (hanya browser sendiri).
     const STORAGE_KEY = 'pes_wc_scores_v2';
     const ADMIN_KEY = 'pes_wc_admin_token_v2';
+    // Remote via Supabase (preferred) or Firebase
+    let SUPABASE = null;
+    let SUPABASE_ENABLED = false;
+    let SUPABASE_CHANNEL = null;
+    let REMOTE_DB = null; // firebase path
+    let REMOTE_ENABLED = false; // firebase enabled
+    let lastRemoteJson = '';
 
     function genToken(len=24){
       const chars='ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
@@ -162,17 +197,30 @@
       history.replaceState(null,'',u.origin + u.pathname + u.hash);
     }
 
-    function saveState(state){
-      // Save scores only (no admin token) to localStorage and URL hash
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-      const shareObj = { scores: state.scores };
+    async function saveState(state){
+      const toSave = { scores: state.scores || {} };
+      // 1) Supabase
+      if (SUPABASE_ENABLED && SUPABASE) {
+        try {
+          await SUPABASE.from('scores_state').upsert({ id: 'global', data: toSave }, { onConflict: 'id' });
+          return;
+        } catch (e) { /* fallthrough */ }
+      }
+      // 2) Firebase
+      if (REMOTE_ENABLED && REMOTE_DB) {
+        try { firebase.database().ref(REMOTE_DB).set(toSave); return; } catch (e) { /* fallthrough */ }
+      }
+      // 3) Local
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ scores: toSave.scores })); } catch (e) { /* ignore */ }
+      const shareObj = { scores: toSave.scores };
       const h = '#' + encodeURIComponent(JSON.stringify(shareObj));
       const u = new URL(location.href);
       u.hash = h;
       history.replaceState(null, '', u.toString());
     }
     function loadState(){
-      // prefer hash, else localStorage
+      // Jika remote (Supabase/Firebase) aktif, listener yang memuat data (async);
+      if (SUPABASE_ENABLED || REMOTE_ENABLED) return null;
       try{
         if(location.hash?.length>1){
           const obj = JSON.parse(decodeURIComponent(location.hash.slice(1)));
@@ -204,6 +252,65 @@
       }
       // Jika tidak ada token di URL, cukup cek localStorage
       return !!localTok;
+    }
+
+    // ======= REMOTE (Firebase) =======
+    function initRemoteIfConfigured(){
+      try{
+        if (!window.FIREBASE_CONFIG) return;
+        if (!firebase?.apps?.length) firebase.initializeApp(window.FIREBASE_CONFIG);
+        const db = firebase.database();
+        REMOTE_DB = 'pes_wc/state';
+        REMOTE_ENABLED = true;
+        db.ref(REMOTE_DB).on('value', (snap)=>{
+          const val = snap.val() || { scores:{} };
+          const json = JSON.stringify(val);
+          if (json === lastRemoteJson) return;
+          lastRemoteJson = json;
+          state.scores = val.scores || {};
+          render();
+        });
+      }catch(e){
+        REMOTE_ENABLED = false;
+        REMOTE_DB = null;
+      }
+    }
+
+    // ======= REMOTE (Supabase) =======
+    async function initSupabaseIfConfigured(){
+      try{
+        const url = window.SUPABASE_URL;
+        const anon = window.SUPABASE_ANON_KEY;
+        if (!url || !anon || !window.supabase) return;
+        SUPABASE = window.supabase.createClient(url, anon, { auth: { persistSession: false } });
+        SUPABASE_ENABLED = true;
+        // initial load
+        const { data, error } = await SUPABASE.from('scores_state').select('data').eq('id','global').maybeSingle();
+        if (!error && data?.data) {
+          state.scores = data.data.scores || {};
+          lastRemoteJson = JSON.stringify({ scores: state.scores });
+          render();
+        } else if (!error && !data) {
+          // seed empty row if not exist so future upserts work consistently
+          await SUPABASE.from('scores_state').upsert({ id: 'global', data: { scores: {} } }, { onConflict: 'id' });
+        }
+        // realtime channel
+        SUPABASE_CHANNEL = SUPABASE.channel('scores_state_changes')
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'scores_state' }, (payload) => {
+            const row = payload.new || payload.old;
+            if (!row || row.id !== 'global') return;
+            const val = row.data || { scores:{} };
+            const json = JSON.stringify(val);
+            if (json === lastRemoteJson) return;
+            lastRemoteJson = json;
+            state.scores = val.scores || {};
+            render();
+          })
+          .subscribe();
+      }catch(e){
+        SUPABASE_ENABLED = false;
+        SUPABASE = null;
+      }
     }
 
     // ======= TIEBREAKERS =======
@@ -272,7 +379,10 @@
       const match = p.team.match(/(.*?)([\u{1F1E6}-\u{1F1FF}]{2,}|🏴)?$/u);
       let teamName = match ? match[1].trim() : p.team;
       let flag = match ? match[2] || '' : '';
-      return `${capitalizeWords(p.name)} — ${capitalizeWords(teamName)} ${flag}`.trim();
+      // Gunakan NBSP sebelum bendera agar tidak turun ke baris berikutnya
+      const nbsp = "\u00A0";
+      const countryWithFlag = flag ? `${capitalizeWords(teamName)}${nbsp}${flag}` : capitalizeWords(teamName);
+      return `${capitalizeWords(p.name)} — ${countryWithFlag}`.trim();
     }
 
     function buildFixtures(arr){
@@ -400,6 +510,7 @@
       });
 
       updateStandings();
+      if (window.twemoji) applyEmoji();
     }
 
     function keyFor(grp,a,b){return `${grp}-${a}-${b}`}
@@ -436,6 +547,7 @@
           </ol>`;
         summaryEl.appendChild(div);
       });
+      if (window.twemoji) applyEmoji();
     }
 
     // ======= Buttons =======
@@ -468,8 +580,16 @@
       return str.replace(/\b\w/g, l => l.toUpperCase());
     }
 
+    function applyEmoji(){
+      try{
+        window.twemoji.parse(document.body, { folder: 'svg', ext: '.svg', className: 'emoji' });
+      }catch(e){/* ignore */}
+    }
+
     (function init(){
       // Jika ada token di URL, hasAdmin() akan menyimpannya ke localStorage.
+      initSupabaseIfConfigured();
+      initRemoteIfConfigured();
       render();
     })();
   </script>
