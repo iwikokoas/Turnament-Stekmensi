@@ -41,14 +41,11 @@
     .table th,.table td{padding:.55rem .6rem;border-bottom:1px dashed rgba(255,255,255,.06)}
     .locked .score{opacity:.6;pointer-events:none}
     .lock-badge{font-size:.75rem;opacity:.8}
-    /* Style for twemoji images to align with text */
     .emoji{height:1em;width:1em;margin:0 .1em;vertical-align:-0.15em;display:inline-block}
     .home,.away{white-space:nowrap}
-    /* Ensure text area flexes and inputs stay fixed width */
     .matches .card > .flex:first-child{flex:1 1 auto; min-width:0}
     .matches .card > .flex:last-child{flex:0 0 auto}
     .matches .home, .matches .away{overflow:hidden;text-overflow:ellipsis;display:block}
-    /* Mobile responsive tweaks */
     @media (max-width: 420px){
       html, body{ font-size: 15px }
       header .text-2xl{ font-size: 1.15rem }
@@ -65,6 +62,12 @@
       .md-no{ display:inline-block; min-width: 1.9rem; text-align:center }
       .lock-badge{ font-size: .7rem }
     }
+    /* ---- KO bracket ---- */
+    .bracket-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem}
+    .ko-card .leg{display:flex;align-items:center;justify-content:space-between;gap:.5rem}
+    .ko-card .team{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .ko-card .agg{font-variant-numeric:tabular-nums}
+    .connector{height:2px;background:rgba(255,255,255,.08)}
   </style>
 </head>
 <body class="min-h-screen">
@@ -72,11 +75,10 @@
     <div class="flex flex-col md:flex-row md:items-end md:justify-between gap-5">
       <div>
         <h1 class="text-2xl md:text-3xl font-bold tracking-tight">PES World Cup STEKMENSI</h1>
-        <p class="text-slate-300 mt-2">Format: penyisihan grup sistem saling bertemu (round‑robin). </p>
+        <p class="text-slate-300 mt-2">Format: penyisihan grup sistem saling bertemu (round‑robin), kemudian 8 Besar & Semifinal <span class="badge">Home‑Away</span>, Final satu pertandingan.</p>
       </div>
       <div class="flex flex-wrap gap-2">
         <button id="btnEnterAdmin" class="px-4 py-2 rounded-xl card">Masuk Admin</button>
-        <!-- Tombol Reset hanya untuk admin -->
         <button id="btnReset" class="px-4 py-2 rounded-xl card" style="display:none;">Reset Semua</button>
         <button id="btnExitAdmin" class="px-4 py-2 rounded-xl card" style="display:none;">Keluar Admin</button>
       </div>
@@ -98,6 +100,30 @@
           <span class="text-xs text-slate-400">Tie‑breakers: Pts → GD → GF → Head‑to‑Head → Nama</span>
         </div>
         <div id="summary" class="grid md:grid-cols-2 gap-4"></div>
+      </div>
+    </section>
+
+    <!-- Knockout Bracket -->
+    <section class="mt-10">
+      <div class="card rounded-2xl p-5">
+        <div class="flex items-center justify-between mb-3">
+          <h2 class="text-lg font-semibold">Bagan Babak Gugur</h2>
+          <span class="text-xs text-slate-400">QF & SF Home‑Away (agregat). Jika agregat imbang, pilih pemenang manual.</span>
+        </div>
+        <div class="bracket-grid">
+          <div>
+            <h3 class="font-semibold mb-2">8 Besar</h3>
+            <div id="qf-list" class="grid gap-3"></div>
+          </div>
+          <div>
+            <h3 class="font-semibold mb-2">Semifinal</h3>
+            <div id="sf-list" class="grid gap-3"></div>
+          </div>
+          <div>
+            <h3 class="font-semibold mb-2">Final</h3>
+            <div id="final-box" class="grid gap-3"></div>
+          </div>
+        </div>
       </div>
     </section>
   </main>
@@ -156,6 +182,70 @@
     </div>
   </template>
 
+  <template id="koTemplate">
+  <div class="ko-card rounded-xl p-3 card">
+    <div class="text-sm text-slate-300 mb-2"><span class="stage"></span> <span class="pair"></span></div>
+    <div class="grid gap-2">
+      <div class="leg">
+        <div class="team l1h font-semibold"></div>
+        <div class="flex items-center gap-2">
+          <label class="text-xs text-slate-400">Home</label>
+          <input class="score l1hs" type="number" min="0" inputmode="numeric" placeholder="0" />
+          <span class="text-slate-400">–</span>
+          <label class="text-xs text-slate-400">Away</label>
+          <input class="score l1as" type="number" min="0" inputmode="numeric" placeholder="0" />
+        </div>
+      </div>
+      <div class="leg">
+        <div class="team l2h font-semibold"></div>
+        <div class="flex items-center gap-2">
+          <label class="text-xs text-slate-400">Home</label>
+          <input class="score l2hs" type="number" min="0" inputmode="numeric" placeholder="0" />
+          <span class="text-slate-400">–</span>
+          <label class="text-xs text-slate-400">Away</label>
+          <input class="score l2as" type="number" min="0" inputmode="numeric" placeholder="0" />
+        </div>
+      </div>
+      <div class="flex flex-col gap-1 mt-2">
+        <div class="flex items-center gap-2">
+          <span class="agg font-semibold"></span>
+        </div>
+        <div class="flex items-center gap-2">
+          <label class="text-xs text-slate-400">Jika agregat imbang:</label>
+          <select class="winnerSel border rounded px-2 py-1 bg-[#0c1227]">
+            <option value="">Pilih Pemenang</option>
+          </select>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+  <template id="finalTemplate">
+    <div class="ko-card rounded-xl p-3 card">
+      <div class="text-sm text-slate-300 mb-2">FINAL</div>
+      <div class="leg">
+        <div class="team f1h font-semibold"></div>
+        <div class="flex items-center gap-2">
+          <label class="text-xs text-slate-400">Home</label>
+          <input class="score fhs" type="number" min="0" inputmode="numeric" placeholder="0" />
+          <span class="text-slate-400">–</span>
+          <label class="text-xs text-slate-400">Away</label>
+          <input class="score fas" type="number" min="0" inputmode="numeric" placeholder="0" />
+        </div>
+      </div>
+      <div class="flex items-center justify-between text-sm mt-1">
+        <div class="agg"></div>
+        <div>
+          <label class="mr-2 text-slate-400">Jika imbang:</label>
+          <select class="winnerSel border rounded px-2 py-1 bg-[#0c1227]">
+            <option value="">Pilih Juara</option>
+          </select>
+        </div>
+      </div>
+    </div>
+  </template>
+
   <script>
     // ======= DATA =======
     const GROUPS = {
@@ -166,101 +256,62 @@
       ],
       B: [
         { name: 'Rido', team: 'Portugal 🇵🇹' },
-        { name: 'Nuryana', team: 'Inggris 🇬🇧' }, // <--- perbaikan di sini
+        { name: 'Nuryana', team: 'Inggris 🇬🇧' },
         { name: 'Wahyu', team: 'Uruguay 🇺🇾' },
       ],
       C: [
-        { name: 'AMF', team: 'Belanda 🇳🇱' },    // Netherland -> Belanda
+        { name: 'AMF', team: 'Belanda 🇳🇱' },
         { name: 'Ule', team: 'Argentina 🇦🇷' },
         { name: 'Andri', team: 'Brasil 🇧🇷' },
       ],
       D: [
-        { name: 'Eeng', team: 'Prancis 🇫🇷' },   // Francis -> Prancis
-        { name: 'Dinar', team: 'Spanyol 🇪🇸' },  // Spain -> Spanyol
+        { name: 'Eeng', team: 'Prancis 🇫🇷' },
+        { name: 'Dinar', team: 'Spanyol 🇪🇸' },
         { name: 'Mulanda', team: 'Jerman 🇩🇪' },
       ],
     };
 
     // ======= STORAGE, SHARE & ADMIN =======
-    // Untuk menyimpan data agar bisa dilihat semua orang, siapkan Firebase config berikut di atas script ini:
-    // window.FIREBASE_CONFIG = { apiKey: "...", authDomain: "...", databaseURL: "https://<project>.firebaseio.com", projectId: "...", storageBucket: "...", messagingSenderId: "...", appId: "..." };
-    // Jika tidak diisi, aplikasi otomatis kembali ke penyimpanan lokal (hanya browser sendiri).
     const STORAGE_KEY = 'pes_wc_scores_v2';
     const ADMIN_KEY = 'pes_wc_admin_token_v2';
     const ADMIN_PASSWORD = '123';
-    // Remote via Supabase (preferred) or Firebase
-    let SUPABASE = null;
-    let SUPABASE_ENABLED = false;
-    let SUPABASE_CHANNEL = null;
-    let REMOTE_DB = null; // firebase path
-    let REMOTE_ENABLED = false; // firebase enabled
-    let lastRemoteJson = '';
-    let lastLocalSaveAt = 0;
-    let saveTimer = null;
+    let SUPABASE = null; let SUPABASE_ENABLED = false; let SUPABASE_CHANNEL = null;
+    let REMOTE_DB = null; let REMOTE_ENABLED = false; let lastRemoteJson = ''; let lastLocalSaveAt = 0; let saveTimer = null;
 
     function genToken(len=24){
       const chars='ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
       let s='';
       if (window.crypto && window.crypto.getRandomValues) {
         window.crypto.getRandomValues(new Uint8Array(len)).forEach(v=> s+=chars[v%chars.length]);
-      } else {
-        // Fallback untuk lingkungan non-browser
-        for(let i=0;i<len;i++) s+=chars[Math.floor(Math.random()*chars.length)];
-      }
+      } else { for(let i=0;i<len;i++) s+=chars[Math.floor(Math.random()*chars.length)]; }
       return s;
     }
 
-    function getURLToken(){
-      const u = new URL(location.href);
-      return u.searchParams.get('admin');
-    }
-
-    function setURLToken(tok){
-      const u = new URL(location.href);
-      if(tok) u.searchParams.set('admin', tok); else u.searchParams.delete('admin');
-      // Hapus password dari bar browser setelah validasi
-      history.replaceState(null,'',u.origin + u.pathname + u.hash);
-    }
-
-    async function saveState(state){
+    function saveState(state){
       const toSave = { scores: state.scores || {} };
       // 1) Supabase
       if (SUPABASE_ENABLED && SUPABASE) {
-        try {
-          await SUPABASE.from('scores_state').upsert({ id: 'global', data: toSave }, { onConflict: 'id' });
-          return;
-        } catch (e) { /* fallthrough */ }
+        return SUPABASE.from('scores_state').upsert({ id: 'global', data: toSave }, { onConflict: 'id' }).then(()=>{}).catch(()=>{});
       }
       // 2) Firebase
       if (REMOTE_ENABLED && REMOTE_DB) {
-        try { firebase.database().ref(REMOTE_DB).set(toSave); return; } catch (e) { /* fallthrough */ }
+        try { return firebase.database().ref(REMOTE_DB).set(toSave); } catch(e){}
       }
-      // 3) Local
-      try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ scores: toSave.scores })); } catch (e) { /* ignore */ }
+      // 3) Local + URL hash share
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ scores: toSave.scores })); } catch (e) {}
       const shareObj = { scores: toSave.scores };
       const h = '#' + encodeURIComponent(JSON.stringify(shareObj));
-      const u = new URL(location.href);
-      u.hash = h;
-      history.replaceState(null, '', u.toString());
+      const u = new URL(location.href); u.hash = h; history.replaceState(null, '', u.toString());
     }
+
     function loadState(){
-      // Jika remote (Supabase/Firebase) aktif, listener yang memuat data (async);
       if (SUPABASE_ENABLED || REMOTE_ENABLED) return null;
-      try{
-        if(location.hash?.length>1){
-          const obj = JSON.parse(decodeURIComponent(location.hash.slice(1)));
-          if(obj && typeof obj==='object') return { scores: obj.scores || {} };
-        }
-      }catch(e){/* ignore */}
-      try{
-        const raw = localStorage.getItem(STORAGE_KEY);
-        return raw ? JSON.parse(raw) : null;
-      }catch(e){return null}
+      try{ if(location.hash?.length>1){ const obj = JSON.parse(decodeURIComponent(location.hash.slice(1))); if(obj && typeof obj==='object') return { scores: obj.scores || {} }; } }catch(e){}
+      try{ const raw = localStorage.getItem(STORAGE_KEY); return raw ? JSON.parse(raw) : null; }catch(e){ return null }
     }
 
     function clearAdmin(){ localStorage.removeItem(ADMIN_KEY); }
-
-    function hasAdmin() { return localStorage.getItem(ADMIN_KEY) === ADMIN_PASSWORD; }
+    function hasAdmin(){ return localStorage.getItem(ADMIN_KEY) === ADMIN_PASSWORD; }
 
     // ======= REMOTE (Firebase) =======
     function initRemoteIfConfigured(){
@@ -274,65 +325,47 @@
           const val = snap.val() || { scores:{} };
           const json = JSON.stringify(val);
           if (json === lastRemoteJson) return;
-          if (Date.now() - lastLocalSaveAt < 800) return; // ignore echo right after local save
+          if (Date.now() - lastLocalSaveAt < 800) return;
           lastRemoteJson = json;
           state.scores = val.scores || {};
           render();
         });
-      }catch(e){
-        REMOTE_ENABLED = false;
-        REMOTE_DB = null;
-      }
+      }catch(e){ REMOTE_ENABLED = false; REMOTE_DB = null; }
     }
 
     // ======= REMOTE (Supabase) =======
     async function initSupabaseIfConfigured(){
       try{
-        const url = window.SUPABASE_URL;
-        const anon = window.SUPABASE_ANON_KEY;
+        const url = window.SUPABASE_URL; const anon = window.SUPABASE_ANON_KEY;
         if (!url || !anon || !window.supabase) return;
         SUPABASE = window.supabase.createClient(url, anon, { auth: { persistSession: false } });
         SUPABASE_ENABLED = true;
-        // initial load
         const { data, error } = await SUPABASE.from('scores_state').select('data').eq('id','global').maybeSingle();
         if (!error && data?.data) {
           state.scores = data.data.scores || {};
           lastRemoteJson = JSON.stringify({ scores: state.scores });
           render();
         } else if (!error && !data) {
-          // seed empty row if not exist so future upserts work consistently
           await SUPABASE.from('scores_state').upsert({ id: 'global', data: { scores: {} } }, { onConflict: 'id' });
         }
-        // realtime channel
         SUPABASE_CHANNEL = SUPABASE.channel('scores_state_changes')
           .on('postgres_changes', { event: '*', schema: 'public', table: 'scores_state' }, (payload) => {
-            const row = payload.new || payload.old;
-            if (!row || row.id !== 'global') return;
-            const val = row.data || { scores:{} };
-            const json = JSON.stringify(val);
-            if (json === lastRemoteJson) return;
-            if (Date.now() - lastLocalSaveAt < 800) return; // ignore echo right after local save
-            lastRemoteJson = json;
-            state.scores = val.scores || {};
-            render();
+            const row = payload.new || payload.old; if (!row || row.id !== 'global') return;
+            const val = row.data || { scores:{} }; const json = JSON.stringify(val);
+            if (json === lastRemoteJson) return; if (Date.now() - lastLocalSaveAt < 800) return;
+            lastRemoteJson = json; state.scores = val.scores || {}; render();
           })
           .subscribe();
-      }catch(e){
-        SUPABASE_ENABLED = false;
-        SUPABASE = null;
-      }
+      }catch(e){ SUPABASE_ENABLED = false; SUPABASE = null; }
     }
 
-    // ======= TIEBREAKERS =======
+    // ======= TIEBREAKERS (Group) =======
     function h2hRank(records, fixtures){
-      const ids = records.map(r=>r.id);
-      const idx = new Map(ids.map((id,i)=>[id,i]));
+      const ids = records.map(r=>r.id); const idx = new Map(ids.map((id,i)=>[id,i]));
       const mini = ids.map(()=>({P:0,W:0,D:0,L:0,GF:0,GA:0,GD:0,PTS:0}));
       for(const m of fixtures){
-        const a = idx.get(m.homeId), b = idx.get(m.awayId);
-        if(a===undefined || b===undefined) continue;
-        const hs = m.hs, as = m.as;
-        if(hs==null || as==null) continue;
+        const a = idx.get(m.homeId), b = idx.get(m.awayId); if(a===undefined || b===undefined) continue;
+        const hs = m.hs, as = m.as; if(hs==null || as==null) continue;
         mini[a].P++; mini[b].P++;
         mini[a].GF+=hs; mini[a].GA+=as; mini[a].GD=mini[a].GF-mini[a].GA;
         mini[b].GF+=as; mini[b].GA+=hs; mini[b].GD=mini[b].GF-mini[b].GA;
@@ -376,48 +409,32 @@
     const tabsEl = document.getElementById('tabs');
     const groupsEl = document.getElementById('groups');
     const summaryEl = document.getElementById('summary');
+    const qfList = document.getElementById('qf-list');
+    const sfList = document.getElementById('sf-list');
+    const finalBox = document.getElementById('final-box');
 
-    // Jika tidak ada state di hash/localStorage, pakai contoh data supaya viewer biasa bisa melihat skor
-    // Mulai tanpa skor jika belum ada data sehingga pengunjung melihat layar kosong
-    // (Jika mau preload contoh untuk testing, kembalikan DEFAULT_SCORES dan gunakan di bawah)
     const state = loadState() || { scores: {} };
-
     const groups = {};
 
     function makeTeamLabel(p){
-      // Pisahkan bendera dari nama tim jika ada
       const match = p.team.match(/(.*?)([\u{1F1E6}-\u{1F1FF}]{2,}|🏴)?$/u);
-      let teamName = match ? match[1].trim() : p.team;
-      let flag = match ? match[2] || '' : '';
-      // Gunakan NBSP sebelum bendera agar tidak turun ke baris berikutnya
-      const nbsp = "\u00A0";
-      const countryWithFlag = flag ? `${capitalizeWords(teamName)}${nbsp}${flag}` : capitalizeWords(teamName);
+      let teamName = match ? match[1].trim() : p.team; let flag = match ? match[2] || '' : '';
+      const nbsp = "\u00A0"; const countryWithFlag = flag ? `${capitalizeWords(teamName)}${nbsp}${flag}` : capitalizeWords(teamName);
       return `${capitalizeWords(p.name)} — ${countryWithFlag}`.trim();
     }
 
     function buildFixtures(arr){
-      // Home-away round robin (6 matches)
-      return [
-        [0,1,true], [1,0,true],
-        [0,2,true], [2,0,true],
-        [1,2,true], [2,1,true]
-      ];
+      return [ [0,1,true],[1,0,true], [0,2,true],[2,0,true], [1,2,true],[2,1,true] ];
     }
 
     function render(){
-      tabsEl.innerHTML = '';
-      groupsEl.innerHTML = '';
-      summaryEl.innerHTML = '';
-
+      tabsEl.innerHTML=''; groupsEl.innerHTML=''; summaryEl.innerHTML=''; qfList.innerHTML=''; sfList.innerHTML=''; finalBox.innerHTML='';
       const isAdmin = hasAdmin();
-
-      // Tampilkan tombol reset & exit hanya untuk admin; tombol masuk untuk non-admin
       document.getElementById('btnReset').style.display = isAdmin ? '' : 'none';
       document.getElementById('btnExitAdmin').style.display = isAdmin ? '' : 'none';
       document.getElementById('btnEnterAdmin').style.display = isAdmin ? 'none' : '';
 
       Object.entries(GROUPS).forEach(([grp, players], idx)=>{
-        // Tabs
         const tab = document.createElement('button');
         tab.className = `px-3 py-2 rounded-xl card text-sm ${idx===0? 'tab-active':''}`;
         tab.textContent = `Grup ${grp}`;
@@ -429,12 +446,10 @@
         });
         tabsEl.appendChild(tab);
 
-        // Section
         const gtpl = document.getElementById('groupTemplate');
         const node = gtpl.content.cloneNode(true);
         const section = node.querySelector('section');
-        section.setAttribute('data-group', grp);
-        if(idx!==0) section.classList.add('hidden');
+        section.setAttribute('data-group', grp); if(idx!==0) section.classList.add('hidden');
         section.querySelector('.grp-name').textContent = grp;
 
         if(!isAdmin){
@@ -445,54 +460,31 @@
           section.classList.add('locked');
         }
 
-        // Build team objects w/ ids
         const teams = players.map((p,i)=>({ id:`${grp}-${i}`, name: makeTeamLabel(p) }));
         const nameById = Object.fromEntries(teams.map(t=>[t.id,t.name]));
 
-        // Matches
         const matchesWrap = section.querySelector('.matches');
         const mtpl = document.getElementById('matchTemplate');
         const pairs = buildFixtures(players);
         section.querySelector('.total-matches').textContent = pairs.length;
 
         pairs.forEach((pair, i)=>{
-          const [a,b] = pair;
-          const mnode = mtpl.content.cloneNode(true);
+          const [a,b] = pair; const mnode = mtpl.content.cloneNode(true);
           mnode.querySelector('.md-no').textContent = (i+1);
-          const k = keyFor(grp,a,b);
-          const hsInput = mnode.querySelector('.home-score');
-          const asInput = mnode.querySelector('.away-score');
-          const swapBtn = mnode.querySelector('.swap-btn'); // may be null in current template
-
-          // Home/away mapping
-          const homeId = `${grp}-${a}`;
-          const awayId = `${grp}-${b}`;
-          const saved = state.scores[k] || null;
-
+          const k = keyFor(grp,a,b); const hsInput = mnode.querySelector('.home-score'); const asInput = mnode.querySelector('.away-score');
+          const homeId = `${grp}-${a}`; const awayId = `${grp}-${b}`; const saved = state.scores[k] || null;
           mnode.querySelector('.home').textContent = nameById[homeId];
           mnode.querySelector('.away').textContent = nameById[awayId];
-          if(saved){
-            if(saved.hs!=null) hsInput.value = saved.hs;
-            if(saved.as!=null) asInput.value = saved.as;
-          }
-
+          if(saved){ if(saved.hs!=null) hsInput.value = saved.hs; if(saved.as!=null) asInput.value = saved.as; }
           function persistFromInputs(){
             const hs = hsInput.value===''? null : parseInt(hsInput.value,10);
             const as = asInput.value===''? null : parseInt(asInput.value,10);
             state.scores[k] = { hs, as, homeId, awayId };
-            scheduleSave();
-            updateStandings();
+            scheduleSave(); updateStandings();
           }
-
           hsInput.addEventListener('input', persistFromInputs);
           asInput.addEventListener('input', persistFromInputs);
-
-          if(!isAdmin){
-            hsInput.disabled = true;
-            asInput.disabled = true;
-            if(swapBtn) swapBtn.style.display = 'none';
-          }
-
+          if(!isAdmin){ hsInput.disabled = true; asInput.disabled = true; }
           matchesWrap.appendChild(mnode);
         });
 
@@ -517,11 +509,11 @@
           })
         }
         groups[grp] = { drawStandings, teams };
-
         groupsEl.appendChild(node);
       });
 
       updateStandings();
+      renderKO();
       if (window.twemoji) applyEmoji();
     }
 
@@ -529,25 +521,17 @@
 
     function collectResultsForGroup(grp){
       const players = GROUPS[grp];
-      const pairs = buildFixtures(players);
-      const out=[];
+      const pairs = buildFixtures(players); const out=[];
       pairs.forEach(([a,b])=>{
-        const k = keyFor(grp,a,b);
-        const saved = state.scores[k] || null;
-        const homeId = `${grp}-${a}`;
-        const awayId = `${grp}-${b}`;
+        const k = keyFor(grp,a,b); const saved = state.scores[k] || null;
+        const homeId = `${grp}-${a}`; const awayId = `${grp}-${b}`;
         out.push({ homeId, awayId, hs: saved?.hs ?? null, as: saved?.as ?? null });
       });
       return out;
     }
-    function scheduleSave(){
-      if (saveTimer) clearTimeout(saveTimer);
-      saveTimer = setTimeout(async ()=>{
-        lastLocalSaveAt = Date.now();
-        await saveState(state);
-      }, 500);
-    }
-    //
+
+    function scheduleSave(){ if (saveTimer) clearTimeout(saveTimer); saveTimer = setTimeout(async ()=>{ lastLocalSaveAt = Date.now(); await saveState(state); }, 500); }
+
     function updateStandings(){
       Object.keys(GROUPS).forEach(grp=>{ groups[grp]?.drawStandings(); });
       summaryEl.innerHTML='';
@@ -569,56 +553,208 @@
       if (window.twemoji) applyEmoji();
     }
 
+    // ======= KNOCKOUT =======
+    function getGroupOrder(grp){
+      const g = groups[grp]; if(!g) return [];
+      const rows = rankTeams(g.teams, collectResultsForGroup(grp));
+      return rows.map(r=>r.id);
+    }
+
+    function labelById(id){
+      // id like "A-0" -> fetch from groups map
+      const grp = id.split('-')[0];
+      const g = groups[grp];
+      if(!g) return id;
+      const t = g.teams.find(x=>x.id===id);
+      if (!t) return id;
+      // Ambil bendera dari nama tim
+      const match = t.name.match(/([\u{1F1E6}-\u{1F1FF}]{2,}|🏴)/u);
+      return match ? match[0] : ''; // hanya bendera
+    }
+
+    function currentWinners(){
+      const A = getGroupOrder('A'), B = getGroupOrder('B'), C = getGroupOrder('C'), D = getGroupOrder('D');
+      const A1=A[0], A2=A[1], B1=B[0], B2=B[1], C1=C[0], C2=C[1], D1=D[0], D2=D[1];
+      return { A1,A2,B1,B2,C1,C2,D1,D2 };
+    }
+
+    function koKey(tieId, leg){ return `KO-${tieId}-${leg}` } // leg: L1 or L2 or F
+    function koWinnerKey(tieId){ return `KO-${tieId}-W` }
+
+    function readScore(key){ const s = state.scores[key]; if(!s) return {hs:null, as:null}; return {hs: s.hs ?? null, as: s.as ?? null}; }
+    function writeScore(key, hs, as, homeId, awayId){ state.scores[key] = { hs, as, homeId, awayId }; scheduleSave(); }
+    function setWinner(tieId, teamId){ state.scores[koWinnerKey(tieId)] = { id: teamId }; scheduleSave(); }
+    function getWinner(tieId){ return state.scores[koWinnerKey(tieId)]?.id || '' }
+
+    function buildQFPairs(){
+      const {A1,A2,B1,B2,C1,C2,D1,D2} = currentWinners();
+      return [
+        { id:'QF1', left:A1, right:B2, name:'A1 vs B2' },
+        { id:'QF2', left:B1, right:A2, name:'B1 vs A2' },
+        { id:'QF3', left:C1, right:D2, name:'C1 vs D2' },
+        { id:'QF4', left:D1, right:C2, name:'D1 vs C2' },
+      ];
+    }
+
+    function buildSFPairs(qfWinners){
+      // SF1: winner QF1 vs QF2, SF2: winner QF3 vs QF4
+      return [
+        { id:'SF1', left:qfWinners.QF1, right:qfWinners.QF2, name:'Pemenang QF1 vs Pemenang QF2' },
+        { id:'SF2', left:qfWinners.QF3, right:qfWinners.QF4, name:'Pemenang QF3 vs Pemenang QF4' },
+      ];
+    }
+
+    function calcAgg(l1, l2){
+      const filled = (x)=> x!=null && !Number.isNaN(x);
+      const ok1 = filled(l1.hs) && filled(l1.as); const ok2 = filled(l2.hs) && filled(l2.as);
+      if(!ok1 && !ok2) return null;
+      const left = (ok1?l1.hs:0) + (ok2?l2.as:0);
+      const right = (ok1?l1.as:0) + (ok2?l2.hs:0);
+      return { left, right };
+    }
+
+    function winnerFromAgg(agg, tieId, leftId, rightId){
+      if(!agg) return '';
+      if(agg.left>agg.right) return leftId; if(agg.right>agg.left) return rightId;
+      // draw -> check manual winner
+      const manual = getWinner(tieId); return manual || '';
+    }
+
+    function renderKO(){
+      qfList.innerHTML=''; sfList.innerHTML=''; finalBox.innerHTML='';
+      const isAdmin = hasAdmin();
+      const qfPairs = buildQFPairs();
+
+      const koTpl = document.getElementById('koTemplate');
+
+      const qfW = {};
+      qfPairs.forEach((p)=>{
+        const node = koTpl.content.cloneNode(true);
+        node.querySelector('.stage').textContent = 'QF';
+        node.querySelector('.pair').textContent = `(${p.name})`;
+        node.querySelector('.l1h').textContent = `${labelById(p.left)} (L1)`;
+        node.querySelector('.l2h').textContent = `${labelById(p.right)} (L2)`;
+
+        const l1 = readScore(koKey(p.id,'L1')); const l2 = readScore(koKey(p.id,'L2'));
+        const l1hs = node.querySelector('.l1hs'); const l1as = node.querySelector('.l1as');
+        const l2hs = node.querySelector('.l2hs'); const l2as = node.querySelector('.l2as');
+        if(l1.hs!=null) l1hs.value=l1.hs; if(l1.as!=null) l1as.value=l1.as;
+        if(l2.hs!=null) l2hs.value=l2.hs; if(l2.as!=null) l2as.value=l2.as;
+
+        const winnerSel = node.querySelector('.winnerSel');
+        [p.left,p.right].forEach(id=>{ const opt=document.createElement('option'); opt.value=id||''; opt.textContent=labelById(id||''); winnerSel.appendChild(opt); });
+        winnerSel.value = getWinner(p.id) || '';
+
+        function persist(){
+          const v1hs = l1hs.value===''?null:parseInt(l1hs.value,10);
+          const v1as = l1as.value===''?null:parseInt(l1as.value,10);
+          const v2hs = l2hs.value===''?null:parseInt(l2hs.value,10);
+          const v2as = l2as.value===''?null:parseInt(l2as.value,10);
+          writeScore(koKey(p.id,'L1'), v1hs, v1as, p.left, p.right);
+          writeScore(koKey(p.id,'L2'), v2hs, v2as, p.right, p.left);
+          renderKO(); // re-render to cascade
+        }
+        function winnerChanged(){ setWinner(p.id, winnerSel.value || ''); renderKO(); }
+
+        if(!isAdmin){ [l1hs,l1as,l2hs,l2as,winnerSel].forEach(el=>el.disabled=true); }
+        l1hs.addEventListener('input', persist); l1as.addEventListener('input', persist);
+        l2hs.addEventListener('input', persist); l2as.addEventListener('input', persist);
+        winnerSel.addEventListener('change', winnerChanged);
+
+        const agg = calcAgg(readScore(koKey(p.id,'L1')), readScore(koKey(p.id,'L2')));
+        const win = winnerFromAgg(agg, p.id, p.left, p.right);
+        node.querySelector('.agg').textContent = agg? `Agregat: ${agg.left}–${agg.right}${agg.left===agg.right?' (imbang)':''}` : 'Agregat: -';
+        if (agg && agg.left === agg.right) node.querySelector('.agg').classList.add('text-yellow-400');
+        else node.querySelector('.agg').classList.remove('text-yellow-400');
+
+        qfList.appendChild(node);
+        qfW[p.id] = win || '';
+      });
+
+      const sfPairs = buildSFPairs(qfW);
+      const sfW = {};
+      sfPairs.forEach((p)=>{
+        const node = koTpl.content.cloneNode(true);
+        node.querySelector('.stage').textContent = 'SF';
+        node.querySelector('.pair').textContent = `(${p.name})`;
+        node.querySelector('.l1h').textContent = `${labelById(p.left)} (L1)`;
+        node.querySelector('.l2h').textContent = `${labelById(p.right)} (L2)`;
+
+        const l1 = readScore(koKey(p.id,'L1')); const l2 = readScore(koKey(p.id,'L2'));
+        const l1hs = node.querySelector('.l1hs'); const l1as = node.querySelector('.l1as');
+        const l2hs = node.querySelector('.l2hs'); const l2as = node.querySelector('.l2as');
+        if(l1.hs!=null) l1hs.value=l1.hs; if(l1.as!=null) l1as.value=l1.as;
+        if(l2.hs!=null) l2hs.value=l2.hs; if(l2.as!=null) l2as.value=l2.as;
+
+        const winnerSel = node.querySelector('.winnerSel');
+        [p.left,p.right].forEach(id=>{ const opt=document.createElement('option'); opt.value=id||''; opt.textContent=labelById(id||''); winnerSel.appendChild(opt); });
+        winnerSel.value = getWinner(p.id) || '';
+
+        function persist(){
+          const v1hs = l1hs.value===''?null:parseInt(l1hs.value,10);
+          const v1as = l1as.value===''?null:parseInt(l1as.value,10);
+          const v2hs = l2hs.value===''?null:parseInt(l2hs.value,10);
+          const v2as = l2as.value===''?null:parseInt(l2as.value,10);
+          writeScore(koKey(p.id,'L1'), v1hs, v1as, p.left, p.right);
+          writeScore(koKey(p.id,'L2'), v2hs, v2as, p.right, p.left);
+          renderKO();
+        }
+        function winnerChanged(){ setWinner(p.id, winnerSel.value || ''); renderKO(); }
+
+        if(!isAdmin){ [l1hs,l1as,l2hs,l2as,winnerSel].forEach(el=>el.disabled=true); }
+        l1hs.addEventListener('input', persist); l1as.addEventListener('input', persist);
+        l2hs.addEventListener('input', persist); l2as.addEventListener('input', persist);
+        winnerSel.addEventListener('change', winnerChanged);
+
+        const agg = calcAgg(readScore(koKey(p.id,'L1')), readScore(koKey(p.id,'L2')));
+        const win = winnerFromAgg(agg, p.id, p.left, p.right);
+        node.querySelector('.agg').textContent = agg? `Agregat: ${agg.left}–${agg.right}${agg.left===agg.right?' (imbang)':''}` : 'Agregat: -';
+        if (agg && agg.left === agg.right) node.querySelector('.agg').classList.add('text-yellow-400');
+        else node.querySelector('.agg').classList.remove('text-yellow-400');
+
+        sfList.appendChild(node);
+        sfW[p.id] = win || '';
+      });
+
+      // Final (single match)
+      const finalTpl = document.getElementById('finalTemplate');
+      const fnode = finalTpl.content.cloneNode(true);
+      const Fleft = sfW.SF1 || ''; const Fright = sfW.SF2 || '';
+      fnode.querySelector('.f1h').textContent = `${labelById(Fleft)} vs ${labelById(Fright)}`;
+      const fhs = fnode.querySelector('.fhs'); const fas = fnode.querySelector('.fas');
+      const fk = koKey('F','F'); const fs = readScore(fk); if(fs.hs!=null) fhs.value=fs.hs; if(fs.as!=null) fas.value=fs.as;
+      const agg = (fs.hs!=null && fs.as!=null) ? { left: fs.hs, right: fs.as } : null;
+      fnode.querySelector('.agg').textContent = agg? `Skor: ${agg.left}–${agg.right}${agg.left===agg.right?' (imbang)':''}` : 'Skor: -';
+      const winnerSel = fnode.querySelector('.winnerSel');
+      [Fleft, Fright].forEach(id=>{ const opt=document.createElement('option'); opt.value=id||''; opt.textContent=labelById(id||''); winnerSel.appendChild(opt); });
+      function persistF(){ const vhs=fhs.value===''?null:parseInt(fhs.value,10); const vas=fas.value===''?null:parseInt(fas.value,10); writeScore(fk, vhs, vas, Fleft, Fright); renderKO(); }
+      function winnerChanged(){ setWinner('F', winnerSel.value || ''); renderKO(); }
+      winnerSel.value = getWinner('F') || '';
+      if(!hasAdmin()){ [fhs,fas,winnerSel].forEach(el=>el.disabled=true); }
+      fhs.addEventListener('input', persistF); fas.addEventListener('input', persistF); winnerSel.addEventListener('change', winnerChanged);
+      finalBox.appendChild(fnode);
+
+      if (window.twemoji) applyEmoji();
+    }
+
     // ======= Buttons =======
     document.getElementById('btnEnterAdmin').addEventListener('click',()=>{
-      const v = prompt('Masukkan password admin:');
-      if(!v) return;
-      if (v.trim() === ADMIN_PASSWORD) {
-        localStorage.setItem(ADMIN_KEY, ADMIN_PASSWORD);
-        toast('Admin mode diaktifkan');
-        location.reload();
-      } else {
-        toast('Password salah');
-      }
+      const v = prompt('Masukkan password admin:'); if(!v) return;
+      if (v.trim() === ADMIN_PASSWORD) { localStorage.setItem(ADMIN_KEY, ADMIN_PASSWORD); toast('Admin mode diaktifkan'); location.reload(); }
+      else { toast('Password salah'); }
     });
 
     document.getElementById('btnReset').addEventListener('click',()=>{
-      if(!confirm('Hapus semua skor?')) return;
-      state.scores = {};
-      saveState(state);
-      location.reload();
+      if(!confirm('Hapus semua skor (grup & knockout)?')) return; state.scores = {}; saveState(state); location.reload();
     });
 
-    document.getElementById('btnExitAdmin').addEventListener('click',()=>{
-      clearAdmin();
-      toast('Admin dimatikan');
-      location.reload();
-    });
+    document.getElementById('btnExitAdmin').addEventListener('click',()=>{ clearAdmin(); toast('Admin dimatikan'); location.reload(); });
 
-    function toast(msg){
-      const el = document.createElement('div');
-      el.textContent = msg;
-      el.className = 'fixed left-1/2 -translate-x-1/2 bottom-6 px-4 py-2 rounded-xl card text-sm';
-      document.body.appendChild(el);
-      setTimeout(()=>{el.remove()}, 2200);
-    }
+    function toast(msg){ const el = document.createElement('div'); el.textContent = msg; el.className = 'fixed left-1/2 -translate-x-1/2 bottom-6 px-4 py-2 rounded-xl card text-sm'; document.body.appendChild(el); setTimeout(()=>{el.remove()}, 2200); }
+    function capitalizeWords(str) { return str.replace(/\b\w/g, l => l.toUpperCase()); }
+    function applyEmoji(){ try{ window.twemoji.parse(document.body, { folder: 'svg', ext: '.svg', className: 'emoji' }); }catch(e){} }
 
-    function capitalizeWords(str) {
-      return str.replace(/\b\w/g, l => l.toUpperCase());
-    }
-
-    function applyEmoji(){
-      try{
-        window.twemoji.parse(document.body, { folder: 'svg', ext: '.svg', className: 'emoji' });
-      }catch(e){/* ignore */}
-    }
-
-    (function init(){
-      // Jika ada token di URL, hasAdmin() akan menyimpannya ke localStorage.
-      initSupabaseIfConfigured();
-      initRemoteIfConfigured();
-      render();
-    })();
+    (function init(){ initSupabaseIfConfigured(); initRemoteIfConfigured(); render(); })();
   </script>
 </body>
 </html>
