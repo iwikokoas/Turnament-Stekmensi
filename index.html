@@ -246,6 +246,31 @@
     </div>
   </template>
 
+  <template id="thirdTemplate">
+  <div class="ko-card rounded-xl p-3 card">
+    <div class="text-sm text-slate-300 mb-2">Perebutan Juara 3</div>
+    <div class="leg">
+      <div class="team t1h font-semibold"></div>
+      <div class="flex items-center gap-2">
+        <label class="text-xs text-slate-400">Home</label>
+        <input class="score ths" type="number" min="0" inputmode="numeric" placeholder="0" />
+        <span class="text-slate-400">–</span>
+        <label class="text-xs text-slate-400">Away</label>
+        <input class="score tas" type="number" min="0" inputmode="numeric" placeholder="0" />
+      </div>
+    </div>
+    <div class="flex items-center justify-between text-sm mt-1">
+      <div class="agg"></div>
+      <div>
+        <label class="mr-2 text-slate-400">Jika imbang:</label>
+        <select class="winnerSel border rounded px-2 py-1 bg-[#0c1227]">
+          <option value="">Pilih Juara 3</option>
+        </select>
+      </div>
+    </div>
+  </div>
+</template>
+
   <script>
     // ======= DATA =======
     const GROUPS = {
@@ -733,6 +758,40 @@
       if(!hasAdmin()){ [fhs,fas,winnerSel].forEach(el=>el.disabled=true); }
       fhs.addEventListener('input', persistF); fas.addEventListener('input', persistF); winnerSel.addEventListener('change', winnerChanged);
       finalBox.appendChild(fnode);
+
+      // Third Place (single match)
+      const thirdTpl = document.getElementById('thirdTemplate');
+      const tnode = thirdTpl.content.cloneNode(true);
+
+      // Dapatkan tim kalah SF1 dan SF2
+      function getLoser(sfId, leftId, rightId) {
+        const agg = calcAgg(readScore(koKey(sfId,'L1')), readScore(koKey(sfId,'L2')));
+        if (!agg) return '';
+        if (agg.left > agg.right) return rightId;
+        if (agg.right > agg.left) return leftId;
+        // draw, cek manual winner
+        const manual = getWinner(sfId);
+        if (manual === leftId) return rightId;
+        if (manual === rightId) return leftId;
+        return '';
+      }
+      const SF1 = sfPairs[0], SF2 = sfPairs[1];
+      const loser1 = getLoser(SF1.id, SF1.left, SF1.right);
+      const loser2 = getLoser(SF2.id, SF2.left, SF2.right);
+
+      tnode.querySelector('.t1h').textContent = `${labelById(loser1)} vs ${labelById(loser2)}`;
+      const ths = tnode.querySelector('.ths'); const tas = tnode.querySelector('.tas');
+      const tk = koKey('T','T'); const ts = readScore(tk); if(ts.hs!=null) ths.value=ts.hs; if(ts.as!=null) tas.value=ts.as;
+      const aggT = (ts.hs!=null && ts.as!=null) ? { left: ts.hs, right: ts.as } : null;
+      tnode.querySelector('.agg').textContent = aggT? `Skor: ${aggT.left}–${aggT.right}${aggT.left===aggT.right?' (imbang)':''}` : 'Skor: -';
+      const winnerSelT = tnode.querySelector('.winnerSel');
+      [loser1, loser2].forEach(id=>{ const opt=document.createElement('option'); opt.value=id||''; opt.textContent=labelById(id||''); winnerSelT.appendChild(opt); });
+      function persistT(){ const vhs=ths.value===''?null:parseInt(ths.value,10); const vas=tas.value===''?null:parseInt(tas.value,10); writeScore(tk, vhs, vas, loser1, loser2); renderKO(); }
+      function winnerChangedT(){ setWinner('T', winnerSelT.value || ''); renderKO(); }
+      winnerSelT.value = getWinner('T') || '';
+      if(!hasAdmin()){ [ths,tas,winnerSelT].forEach(el=>el.disabled=true); }
+      ths.addEventListener('input', persistT); tas.addEventListener('input', persistT); winnerSelT.addEventListener('change', winnerChangedT);
+      finalBox.appendChild(tnode);
 
       if (window.twemoji) applyEmoji();
     }
